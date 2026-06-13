@@ -36,12 +36,34 @@ cache Headroom needs at runtime.
 (`HF_HUB_OFFLINE=1`) so the proxy never reaches the internet. Force with `--offline` /
 `--online` if needed.
 
+## Turn it on/off (one press)
+
+The whole stack — or any single layer — pauses and resumes instantly (no reinstall):
+
+```powershell
+.\token-stack.exe off              # whole stack off  → Claude talks DIRECT to Anthropic (still works)
+.\token-stack.exe on               # whole stack back on
+.\token-stack.exe toggle           # flip whichever way
+.\token-stack.exe off rtk          # just one layer: headroom | rtk | semble
+```
+
+**OFF is safe:** it removes the routing too, so Claude keeps working directly against
+`api.anthropic.com` — it doesn't just kill the proxy and strand you. Restart Claude after
+toggling for it to take effect.
+
+**The button:** `install` drops a **"Token Stack"** shortcut on your Desktop — double-click it
+to toggle the whole stack on/off (with a popup confirming the new state). Re-create it anytime
+with `.\token-stack.exe shortcut`.
+
 ## Commands
 
 | Command | What |
 |---|---|
-| `install` | full install/repair (idempotent; `--component headroom\|rtk\|semble`) |
-| `status` | live table; `--hook` one-line; `--json` |
+| `install` | full install/repair (idempotent; `--component headroom\|rtk\|semble`; `--offline`/`--online`) |
+| `on` / `off` / `toggle` `[layer]` | pause/resume whole stack or one layer (no reinstall) |
+| `shortcut` | (re)create the desktop toggle button |
+| `pack` | build an offline bundle (run on an online machine) |
+| `status` | live table (shows OFF for paused layers); `--hook` one-line; `--json` |
 | `start` / `stop` / `restart` | proxy lifecycle (restart = zombie recovery) |
 | `config list/get/set/open` | edit `%LOCALAPPDATA%\token-stack\config.json` |
 | `doctor [--fix]` | detect + repair the known failure modes |
