@@ -7,7 +7,8 @@ public class StatusLineTests
 {
     private static StackStatus Healthy() => new(
         TaskRunning: true, PortListening: true, Routed: true, Reqs: 42,
-        Port: 8787, RtkOnPath: true, SembleWired: true);
+        Port: 8787, RtkOnPath: true, SembleWired: true,
+        HeadroomEnabled: true, RtkEnabled: true, SembleEnabled: true);
 
     [Fact]
     public void AllUp_Routed_WithReqs()
@@ -61,5 +62,22 @@ public class StatusLineTests
     {
         var s = Healthy() with { Port = 9000 };
         Assert.Contains("(:9000,", StatusLine.Build(s));
+    }
+
+    [Fact]
+    public void HeadroomOff_ShowsOff_RegardlessOfProbe()
+    {
+        var s = Healthy() with { HeadroomEnabled = false };
+        Assert.Contains("Headroom: OFF", StatusLine.Build(s));
+        Assert.DoesNotContain("ROUTED", StatusLine.Build(s));
+    }
+
+    [Fact]
+    public void RtkOff_AndSembleOff_ShowOff()
+    {
+        var s = Healthy() with { RtkEnabled = false, SembleEnabled = false };
+        var line = StatusLine.Build(s);
+        Assert.Contains("RTK: OFF", line);
+        Assert.Contains("Semble: OFF", line);
     }
 }

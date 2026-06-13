@@ -35,8 +35,11 @@ public sealed class StatusProbe(
             Routed: routing.IsSessionRouted(cfg.Headroom.Port),
             Reqs: reqs,
             Port: cfg.Headroom.Port,
-            RtkOnPath: runner.Run("rtk", "--version", 10000).Ok,
-            SembleWired: sembleWired);
+            RtkOnPath: cfg.Rtk.Enabled && runner.Run("rtk", "--version", 10000).Ok,
+            SembleWired: sembleWired,
+            HeadroomEnabled: cfg.Headroom.Enabled,
+            RtkEnabled: cfg.Rtk.Enabled,
+            SembleEnabled: cfg.Semble.Enabled);
     }
 
     /// <summary>Hook-mode side effects: start the task if down + zombie-recover, then report.</summary>
