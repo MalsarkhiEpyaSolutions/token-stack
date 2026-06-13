@@ -1,0 +1,114 @@
+using System.Text.Json.Nodes;
+using TokenStack.Core.Config;
+using TokenStack.Core.Doctor;
+using Xunit;
+
+namespace TokenStack.Tests;
+
+public class DoctorTests
+{
+    private static DoctorContext Ctx(
+        Action<FakeEnv>? env = null, bool portListening = true,
+        string settings = "{}", string claudeJson = "{}",
+        StackConfig? cfg = null, FakeRunner? runner = null)
+    {
+        var e = new FakeEnv();
+        env?.Invoke(e);
+        return new DoctorContext(
+            cfg ?? StackConfig.CreateDefault(@"C:\ts"),
+            JsonNode.Parse(settings)!, JsonNode.Parse(claudeJson)!,
+            e, new FakePort { Listening = portListening },
+            runner ?? new FakeRunner(), new FakeHttp());
+    }
+
+    [Fact]
+    public void RoutingBypassed_Detected_AndFixed()
+    {
+        var ctx = Ctx(e =>
+        {
+            e.User["ANTHROPIC_BASE_URL"] = "https://api.anthropic.com"; // wrong scope value
+            e.Process["ANTHROPIC_BASE_URL"] = "https://api.anthropic.com";
+        });
+        var check = new RoutingBypassedCheck();
+        Assert.False(check.Detect(ctx).Ok);
+        Assert.True(check.Fix(ctx));
+        Assert.Equal("http://127.0.0.1:8787",
+            ((FakeEnv)ctx.Env).User["ANTHROPIC_BASE_URL"]);
+    }
+
+    [Fact]
+    public void ProxyZombie_Detected_WhenTaskRunningPortDead()
+    {
+        var runner = new FakeRunner
+        {
+            Handler = (f, a) => a.Contains("/query") && a.Contains("/fo csv")
+                ? new(0, "\"HeadroomProxy\",\"N/A\",\"Running\"", "")
+                : new(0, "", ""),
+        };
+        var ctx = Ctx(portListening: false, runner: runner);
+        Assert.False(new ProxyZombieCheck().Detect(ctx).Ok);
+    }
+
+    [Fact]
+    public void SembleUvx_Detected_WhenCommandIsUvx()
+    {
+        var ctx = Ctx(claudeJson:
+            """{ "mcpServers": { "semble": { "command": "uvx", "args": ["--from","semble[mcp]","semble"] } } }""");
+        Assert.False(new SembleUvxCheck().Detect(ctx).Ok);
+    }
+
+    [Fact]
+    public void RtkHookMissing_Detected_OnEmptySettings()
+    {
+        Assert.False(new RtkHookMissingCheck().Detect(Ctx()).Ok);
+    }
+
+    [Fact]
+    public void RtkHookPowershell_Detected()
+    {
+        var ctx = Ctx(settings:
+            """{ "hooks": { "PreToolUse": [ { "matcher": "PowerShell", "hooks": [ { "type":"command","command":"\"C:\\ts\\rtk\\rtk.exe\" hook claude" } ] } ] } }""");
+        Assert.False(new RtkHookPowershellCheck().Detect(ctx).Ok);
+    }
+
+    [Fact]
+    public void ModelPin_DetectedAndFixed()
+    {
+        var ctx = Ctx(e => e.User["ANTHROPIC_MODEL"] = "claude-opus-4-6");
+        var check = new ModelPinLeftoverCheck();
+        Assert.False(check.Detect(ctx).Ok);
+        Assert.True(check.Fix(ctx));
+        Assert.False(((FakeEnv)ctx.Env).User.ContainsKey("ANTHROPIC_MODEL"));
+    }
+
+    [Fact]
+    public void PathSpaces_Detected()
+    {
+        var ctx = Ctx(cfg: StackConfig.CreateDefault(@"C:\proxy tokens"));
+        var r = new PathSpacesCheck().Detect(ctx);
+        Assert.False(r.Ok);
+        Assert.False(r.CanFix); // guided reinstall, not auto-fix
+    }
+
+    [Fact]
+    public void DisabledDrift_Detected_WhenRtkDisabledButHookPresent()
+    {
+        var cfg = StackConfig.CreateDefault(@"C:\ts");
+        cfg.Rtk.Enabled = false;
+        var ctx = Ctx(cfg: cfg, settings:
+            """{ "hooks": { "PreToolUse": [ { "matcher": "Bash", "hooks": [ { "type":"command","command":"\"C:\\ts\\rtk\\rtk.exe\" hook claude" } ] } ] } }""");
+        Assert.False(new DisabledDriftCheck().Detect(ctx).Ok);
+    }
+
+    [Fact]
+    public void Registry_ContainsAllTenChecks()
+    {
+        Assert.Equal(10, DoctorRegistry.All.Count);
+        Assert.Equal(new[]
+        {
+            "routing-bypassed", "proxy-zombie", "proxy-extra-missing", "semble-uvx",
+            "rtk-hook-missing", "rtk-hook-powershell", "model-pin-leftover",
+            "path-spaces", "task-misconfigured", "stack-disabled-drift",
+        }, DoctorRegistry.All.Select(c => c.Id).ToArray());
+    }
+}
