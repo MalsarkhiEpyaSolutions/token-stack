@@ -21,9 +21,11 @@ public sealed class PackCommand : Command<PackCommand.Settings>
         var outZip = s.Out ?? Path.Combine(Directory.GetCurrentDirectory(), "token-stack-offline-v1.0.0.zip");
         try
         {
-            var uv = new Bootstrap(Services.Runner).EnsureUv();
+            var boot = new Bootstrap(Services.Runner);
+            boot.EnsureUv();                       // make sure uv is present
+            var uvExe = boot.ResolveUvExe();       // …then its real FILE path (for bundling)
             AnsiConsole.MarkupLine("[bold]Packing offline bundle[/] (uv + portable python + wheelhouse + rtk + HF models)...");
-            OfflinePacker.Pack(cfg, Services.Runner, uv, outZip,
+            OfflinePacker.Pack(cfg, Services.Runner, uvExe, outZip,
                 m => AnsiConsole.MarkupLineInterpolated($"[grey]{m}[/]"));
             AnsiConsole.MarkupLineInterpolated($"[green]Offline bundle ready:[/] {outZip}");
             AnsiConsole.MarkupLine(

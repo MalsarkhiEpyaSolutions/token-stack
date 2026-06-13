@@ -37,4 +37,25 @@ public sealed class Bootstrap(IProcessRunner runner)
             "uv was installed but is not yet resolvable in this process. " +
             "Open a new terminal and re-run `token-stack install`.");
     }
+
+    /// <summary>The actual uv.exe FILE path (for bundling into an offline pack). EnsureUv may
+    /// return the bare command name "uv" when it's on PATH — that can't be File.Copy'd.</summary>
+    public string ResolveUvExe()
+    {
+        var local = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "bin", "uv.exe");
+        if (File.Exists(local)) return local;
+
+        var where = runner.Run("where", "uv", 10000);
+        if (where.Ok)
+        {
+            var hit = where.StdOut.Split('\n', '\r')
+                .Select(s => s.Trim())
+                .FirstOrDefault(s => s.EndsWith("uv.exe", StringComparison.OrdinalIgnoreCase) && File.Exists(s));
+            if (hit is not null) return hit;
+        }
+        throw new InvalidOperationException(
+            "could not resolve the uv.exe file path for bundling — ensure uv is installed " +
+            "(https://docs.astral.sh/uv/).");
+    }
 }
