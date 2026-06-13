@@ -80,7 +80,9 @@ public sealed class HeadroomComponent(IProcessRunner runner, IPortProbe port, IH
         if (src.IsOffline)
         {
             hfHome = Path.Combine(cfg.InstallRoot, "hf-cache");
-            CopyDirectory(src.HfCache, hfHome); // seed the HuggingFace models for offline runtime
+            if (!Directory.Exists(src.HfCache))
+                throw new DirectoryNotFoundException($"offline HuggingFace cache missing in bundle: {src.HfCache}");
+            FsUtil.CopyDirectory(src.HfCache, hfHome); // seed the HuggingFace models for offline runtime
         }
         File.WriteAllText(Path.Combine(cfg.InstallRoot, "run_proxy.py"), RenderLauncher(cfg.Headroom, hfHome));
 
@@ -124,16 +126,5 @@ public sealed class HeadroomComponent(IProcessRunner runner, IPortProbe port, IH
         var tasks = new ScheduledTaskManager(runner);
         tasks.Stop();
         tasks.Unregister();
-    }
-
-    private static void CopyDirectory(string src, string dst)
-    {
-        if (!Directory.Exists(src))
-            throw new DirectoryNotFoundException($"offline HuggingFace cache missing in bundle: {src}");
-        Directory.CreateDirectory(dst);
-        foreach (var dir in Directory.GetDirectories(src, "*", SearchOption.AllDirectories))
-            Directory.CreateDirectory(Path.Combine(dst, Path.GetRelativePath(src, dir)));
-        foreach (var file in Directory.GetFiles(src, "*", SearchOption.AllDirectories))
-            File.Copy(file, Path.Combine(dst, Path.GetRelativePath(src, file)), overwrite: true);
     }
 }

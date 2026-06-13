@@ -36,7 +36,7 @@ public static class DoctorRegistry
         new RoutingBypassedCheck(), new ProxyZombieCheck(), new ProxyExtraMissingCheck(),
         new SembleUvxCheck(), new RtkHookMissingCheck(), new RtkHookPowershellCheck(),
         new ModelPinLeftoverCheck(), new PathSpacesCheck(), new TaskMisconfiguredCheck(),
-        new DisabledDriftCheck(),
+        new DisabledDriftCheck(), new OfflineModelsPresentCheck(),
     };
 }
 
@@ -224,6 +224,28 @@ public sealed class TaskMisconfiguredCheck : IDoctorCheck
             .RegisterOrUpdate(xml, Path.Combine(ctx.Config.InstallRoot, "tmp"));
         return true;
     }
+}
+
+/// <summary>Offline installs seed HuggingFace models into installRoot\hf-cache. If that dir
+/// exists (= an offline install) it must actually contain model dirs, else the proxy will try
+/// to reach HuggingFace at runtime and fail on an air-gapped machine. Online installs have no
+/// hf-cache dir and pass trivially.</summary>
+public sealed class OfflineModelsPresentCheck : IDoctorCheck
+{
+    public string Id => "offline-models-present";
+    public CheckResult Detect(DoctorContext ctx)
+    {
+        var hf = Path.Combine(ctx.Config.InstallRoot, "hf-cache");
+        if (!Directory.Exists(hf))
+            return new(Id, true, "online install (no bundled model cache)", false);
+        var hub = Path.Combine(hf, "hub");
+        var hasModels = Directory.Exists(hub)
+            && Directory.EnumerateDirectories(hub, "models--*").Any();
+        return hasModels
+            ? new(Id, true, "bundled HuggingFace models present", false)
+            : new(Id, false, $"hf-cache exists but has no models at {hub} — re-pack/re-install offline", false);
+    }
+    public bool Fix(DoctorContext ctx) => false; // guided: rebuild the offline bundle
 }
 
 public sealed class DisabledDriftCheck : IDoctorCheck

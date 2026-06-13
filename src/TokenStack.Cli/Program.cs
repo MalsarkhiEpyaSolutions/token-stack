@@ -16,6 +16,7 @@ app.Configure(c =>
         .WithDescription("config list | get <key> | set <key> <value> | open");
     c.AddCommand<DoctorCommand>("doctor").WithDescription("Diagnose (and --fix) known failure modes");
     c.AddCommand<UpdateCommand>("update").WithDescription("Update a component to a pinned version");
+    c.AddCommand<PackCommand>("pack").WithDescription("Build an offline bundle (run on an online machine)");
     c.AddCommand<GainCommand>("gain").WithDescription("Unified savings report (rtk + headroom)");
     c.AddCommand<UninstallCommand>("uninstall").WithDescription("Full rollback");
 });

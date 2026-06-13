@@ -101,14 +101,39 @@ public class DoctorTests
     }
 
     [Fact]
-    public void Registry_ContainsAllTenChecks()
+    public void OfflineModels_Ok_WhenNoHfCache_OnlineInstall()
     {
-        Assert.Equal(10, DoctorRegistry.All.Count);
+        // C:\ts has no hf-cache dir → online install → N/A → ok
+        Assert.True(new OfflineModelsPresentCheck().Detect(Ctx()).Ok);
+    }
+
+    [Fact]
+    public void OfflineModels_Fails_WhenHfCachePresentButEmpty()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ts-doc", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "hf-cache")); // present but no models
+        var ctx = Ctx(cfg: StackConfig.CreateDefault(root));
+        Assert.False(new OfflineModelsPresentCheck().Detect(ctx).Ok);
+    }
+
+    [Fact]
+    public void OfflineModels_Ok_WhenModelsPresent()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ts-doc", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "hf-cache", "hub", "models--answerdotai--ModernBERT-base"));
+        var ctx = Ctx(cfg: StackConfig.CreateDefault(root));
+        Assert.True(new OfflineModelsPresentCheck().Detect(ctx).Ok);
+    }
+
+    [Fact]
+    public void Registry_ContainsAllElevenChecks()
+    {
+        Assert.Equal(11, DoctorRegistry.All.Count);
         Assert.Equal(new[]
         {
             "routing-bypassed", "proxy-zombie", "proxy-extra-missing", "semble-uvx",
             "rtk-hook-missing", "rtk-hook-powershell", "model-pin-leftover",
-            "path-spaces", "task-misconfigured", "stack-disabled-drift",
+            "path-spaces", "task-misconfigured", "stack-disabled-drift", "offline-models-present",
         }, DoctorRegistry.All.Select(c => c.Id).ToArray());
     }
 }
