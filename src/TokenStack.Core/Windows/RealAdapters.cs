@@ -19,6 +19,14 @@ public sealed class RealProcessRunner : IProcessRunner
                     CreateNoWindow = true,
                 },
             };
+            // uv defaults its managed-Python dir to %APPDATA% (roaming). Corporate roaming
+            // profiles corrupt the minor-version junction ("Missing expected target directory
+            // for Python minor version link" — seen live on the reference machine), so pin it
+            // to local disk unless the user already chose a location.
+            if (!p.StartInfo.Environment.ContainsKey("UV_PYTHON_INSTALL_DIR"))
+                p.StartInfo.Environment["UV_PYTHON_INSTALL_DIR"] = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "uv", "python");
             p.Start();
             var stdout = p.StandardOutput.ReadToEndAsync();
             var stderr = p.StandardError.ReadToEndAsync();
