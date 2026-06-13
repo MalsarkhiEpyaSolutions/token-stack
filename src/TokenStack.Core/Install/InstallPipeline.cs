@@ -1,0 +1,201 @@
+using TokenStack.Core.Claude;
+using TokenStack.Core.Components;
+using TokenStack.Core.Config;
+using TokenStack.Core.Windows;
+
+namespace TokenStack.Core.Install;
+
+public sealed record InstallStep(string Name, Action Run);
+
+public sealed class InstallPipeline(
+    IProcessRunner runner, IEnvStore env, IPortProbe port, IHttpProbe http,
+    Action<string> log)
+{
+    public string SettingsPath { get; init; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "settings.json");
+    public string ClaudeJsonPath { get; init; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude.json");
+
+    public static void Preflight(StackConfig cfg)
+    {
+        var errors = ConfigValidator.Validate(cfg);
+        if (errors.Count > 0)
+            throw new InvalidOperationException("Config invalid: " + string.Join("; ", errors)
+                + (cfg.InstallRoot.Contains(' ') ? " — choose a root without spaces." : ""));
+        Directory.CreateDirectory(cfg.InstallRoot);
+    }
+
+    /// <summary>Pure step plan (testable). Run() bodies close over the instance services.</summary>
+    public static List<InstallStep> PlanSteps(StackConfig cfg)
+    {
+        var steps = new List<InstallStep>
+        {
+            new("preflight", () => { }),
+            new("bootstrap-uv", () => { }),
+        };
+        if (cfg.Headroom.Enabled) steps.Add(new("headroom", () => { }));
+        if (cfg.Rtk.Enabled) steps.Add(new("rtk", () => { }));
+        if (cfg.Semble.Enabled) steps.Add(new("semble", () => { }));
+        steps.Add(new("routing", () => { }));
+        steps.Add(new("hooks", () => { }));
+        steps.Add(new("save-config", () => { }));
+        return steps;
+    }
+
+    /// <summary>persistConfig=false for `install --component X` repairs — the in-memory
+    /// enabled-flag narrowing must never be written back to config.json.</summary>
+    public void Run(StackConfig cfg, bool persistConfig = true)
+    {
+        log("[1/8] preflight");
+        Preflight(cfg);
+        DetectLegacyInstall();
+
+        log("[2/8] bootstrap: uv");
+        var uv = new Bootstrap(runner).EnsureUv();
+
+        var headroom = new HeadroomComponent(runner, port, http);
+        if (cfg.Headroom.Enabled)
+        {
+            log($"[3/8] headroom {cfg.Headroom.Version} (venv + [proxy] + task; cold load 25-105s)");
+            headroom.Install(cfg, uv);
+            if (!headroom.WaitReady(cfg.Headroom.Port))
+                throw new InvalidOperationException(
+                    $"Headroom did not become ready on :{cfg.Headroom.Port} within 120s. " +
+                    $"Log: {Path.Combine(cfg.InstallRoot, "proxy.log")}");
+            log($"      ready on :{cfg.Headroom.Port}");
+        }
+
+        var rtk = new RtkComponent(runner, env);
+        if (cfg.Rtk.Enabled)
+        {
+            log($"[4/8] rtk {cfg.Rtk.Version} (download + PATH)");
+            rtk.Install(cfg);
+        }
+
+        var semble = new SembleComponent(runner);
+        if (cfg.Semble.Enabled)
+        {
+            log("[5/8] semble (uv tool install + smoke search)");
+            semble.Install(cfg.Semble, uv);
+            if (!semble.SmokeTest())
+                throw new InvalidOperationException(
+                    "semble installed but the smoke search failed — run with --verbose for output.");
+        }
+
+        log("[6/8] routing");
+        if (cfg.Routing.Desktop)
+        {
+            new RoutingManager(env).ApplyDesktop(cfg.Headroom.Port);
+            log("      User-scope ANTHROPIC_BASE_URL set (Desktop ignores settings.json env)");
+        }
+
+        log("[7/8] claude wiring (settings.json + .claude.json, one backup each)");
+        CopySelfToRoot(cfg);
+        ApplyClaudeWiring(cfg);
+
+        log("[8/8] save config");
+        if (persistConfig) ConfigStore.Save(cfg, ConfigStore.DefaultPath);
+        else log("      (component-scoped run — config.json left untouched)");
+
+        log("DONE. Fully quit Claude Desktop from the system tray and relaunch " +
+            "(env inheritance happens at process creation).");
+    }
+
+    /// <summary>All Claude-file edits in one editor session per file = one backup per run.
+    /// Also the convergence target for doctor's drift fix.</summary>
+    public void ApplyClaudeWiring(StackConfig cfg)
+    {
+        var settingsEditor = new ClaudeFileEditor(SettingsPath);
+        var settings = settingsEditor.Load();
+        var changed = false;
+
+        if (cfg.Rtk.Enabled)
+            changed |= ClaudeSurgeon.EnsureRtkHook(settings,
+                Path.Combine(cfg.InstallRoot, "rtk", "rtk.exe"), cfg.Rtk.HookMatcher);
+        else
+            changed |= ClaudeSurgeon.RemoveRtkHook(settings);
+
+        if (cfg.Hooks.SessionStatusLine)
+            changed |= ClaudeSurgeon.EnsureSessionStatusHook(settings,
+                Path.Combine(cfg.InstallRoot, "token-stack.exe"));
+        else
+            changed |= ClaudeSurgeon.RemoveSessionStatusHook(settings);
+
+        if (cfg.Routing.Cli)
+            changed |= ClaudeSurgeon.SetEnvBaseUrl(settings, RoutingManager.ProxyUrl(cfg.Headroom.Port));
+        else
+            changed |= ClaudeSurgeon.RemoveEnvBaseUrl(settings);
+
+        if (changed) settingsEditor.SaveWithBackup(settings);
+
+        var claudeJsonEditor = new ClaudeFileEditor(ClaudeJsonPath);
+        var claudeJson = claudeJsonEditor.Load();
+        var changed2 = cfg.Semble.Enabled
+            ? ClaudeSurgeon.EnsureSembleMcp(claudeJson, SembleComponent.ExePath())
+            : ClaudeSurgeon.RemoveSembleMcp(claudeJson);
+        if (changed2) claudeJsonEditor.SaveWithBackup(claudeJson);
+    }
+
+    /// <summary>The SessionStart hook points at installRoot\token-stack.exe, so the exe must
+    /// live there — `install` copies the running binary in (self-install). The user can then
+    /// delete the unzipped download without breaking the hook.</summary>
+    private void CopySelfToRoot(StackConfig cfg)
+    {
+        var self = Environment.ProcessPath;
+        var target = Path.Combine(cfg.InstallRoot, "token-stack.exe");
+        if (self is null) { log("      WARN: cannot resolve own path — hook may point at a missing exe"); return; }
+        if (string.Equals(Path.GetFullPath(self), Path.GetFullPath(target), StringComparison.OrdinalIgnoreCase))
+            return; // already running from installRoot
+        try
+        {
+            File.Copy(self, target, overwrite: true);
+            log($"      copied self to {target}");
+        }
+        catch (IOException) // target locked (e.g. a hook is running it right now)
+        {
+            log("      self-copy skipped (target in use) — existing copy kept");
+        }
+    }
+
+    /// <summary>Recognize the hand-built reference layout and announce adoption (spec §5.0):
+    /// our Ensure* calls rewrite the legacy entries; the old root is left for manual delete.</summary>
+    private void DetectLegacyInstall()
+    {
+        if (!File.Exists(SettingsPath)) return;
+        var text = File.ReadAllText(SettingsPath);
+        if (text.Contains("ensure-stack.ps1") || text.Contains("proxy tokens"))
+            log("      detected a hand-built token stack — adopting (hooks/task/MCP will be " +
+                "rewired to the managed layout; the old folder is left for you to delete).");
+    }
+
+    public void Uninstall(StackConfig cfg, bool keepConfig)
+    {
+        log("stopping + unregistering HeadroomProxy task");
+        new HeadroomComponent(runner, port, http).Unwire(cfg);
+
+        log("removing routing env vars");
+        new RoutingManager(env).RemoveDesktop();
+
+        log("unwiring claude files (hooks, env, MCP)");
+        var settingsEditor = new ClaudeFileEditor(SettingsPath);
+        var settings = settingsEditor.Load();
+        var changed = ClaudeSurgeon.RemoveRtkHook(settings);
+        changed |= ClaudeSurgeon.RemoveSessionStatusHook(settings);
+        changed |= ClaudeSurgeon.RemoveEnvBaseUrl(settings);
+        if (changed) settingsEditor.SaveWithBackup(settings);
+
+        var cjEditor = new ClaudeFileEditor(ClaudeJsonPath);
+        var cj = cjEditor.Load();
+        if (ClaudeSurgeon.RemoveSembleMcp(cj)) cjEditor.SaveWithBackup(cj);
+
+        log("uninstalling semble tool + removing rtk from PATH");
+        try { new SembleComponent(runner).Unwire(new Bootstrap(runner).EnsureUv()); }
+        catch { log("  (uv unavailable — skipped `uv tool uninstall semble`)"); }
+        new RtkComponent(runner, env).Unwire(cfg);
+
+        if (!keepConfig && File.Exists(ConfigStore.DefaultPath))
+            File.Delete(ConfigStore.DefaultPath);
+        log($"NOTE: {cfg.InstallRoot} (venv/rtk/launcher) left on disk — delete manually " +
+            "after closing any process using it.");
+    }
+}
