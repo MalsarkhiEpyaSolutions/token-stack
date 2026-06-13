@@ -42,6 +42,13 @@ public sealed class HeadroomComponent(IProcessRunner runner, IPortProbe port, IH
 
     public void Install(StackConfig cfg, string uvPath)
     {
+        var tasks = new ScheduledTaskManager(runner);
+        // Stop/kill FIRST: a running proxy (prior attempt, zombie, or the legacy install
+        // being adopted) locks the venv binaries — `uv venv --clear` would hit Access denied —
+        // and holds the port the new instance needs.
+        if (tasks.Exists()) tasks.Stop();
+        tasks.KillOrphans();
+
         foreach (var cmd in PlanInstallCommands(cfg, uvPath))
         {
             var space = cmd.IndexOf(' ');
@@ -50,11 +57,6 @@ public sealed class HeadroomComponent(IProcessRunner runner, IPortProbe port, IH
         }
         File.WriteAllText(Path.Combine(cfg.InstallRoot, "run_proxy.py"), RenderLauncher(cfg.Headroom));
 
-        var tasks = new ScheduledTaskManager(runner);
-        // Free the port first: stop any prior task instance and kill orphaned proxies
-        // (incl. a legacy hand-built install being adopted) before starting the managed one.
-        if (tasks.Exists()) tasks.Stop();
-        tasks.KillOrphans();
         var xml = TaskXml.Render(
             Path.Combine(cfg.InstallRoot, "venv", "Scripts", "pythonw.exe"),
             Path.Combine(cfg.InstallRoot, "run_proxy.py"),
