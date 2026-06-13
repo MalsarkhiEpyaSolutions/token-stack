@@ -19,7 +19,7 @@ public class SembleTests
     {
         var runner = new FakeRunner();
         var sc = new SembleComponent(runner);
-        sc.Install(new SembleConfig(), uvPath: "uv", verifyExe: false); // no exe on test machines
+        sc.Install(new SembleConfig(), uvPath: "uv", verifyExe: false, skipIfPresent: false);
         Assert.Contains("uv tool install --force semble[mcp]", runner.Calls);
     }
 

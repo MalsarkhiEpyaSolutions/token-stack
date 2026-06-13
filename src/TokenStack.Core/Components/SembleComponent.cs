@@ -15,8 +15,15 @@ public sealed class SembleComponent(IProcessRunner runner)
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         ".local", "bin", "semble.exe");
 
-    public void Install(SembleConfig cfg, string uvPath, bool verifyExe = true)
+    /// <summary>skipIfPresent: an unpinned ("latest") install treats an existing working exe
+    /// as satisfied — adoption-friendly and avoids rewriting uv's Roaming tool dir from inside
+    /// an MSIX container (live failure: os error 4395 deleting a real dir through the
+    /// virtualization overlay). Explicit `update` passes false to force the reinstall.</summary>
+    public void Install(SembleConfig cfg, string uvPath, bool verifyExe = true, bool skipIfPresent = true)
     {
+        if (skipIfPresent && cfg.Version == "latest" && File.Exists(ExePath()))
+            return; // already installed — `token-stack update --component semble` upgrades
+
         var r = runner.Run(uvPath, $"tool install --force {InstallSpec(cfg)}", 600000);
         if (!r.Ok)
             throw new InvalidOperationException($"uv tool install semble failed: {r.StdErr}{r.StdOut}");

@@ -42,7 +42,7 @@ public sealed class UpdateCommand : Command<UpdateCommand.Settings>
                 return 0;
             case "semble":
                 if (s.Version is not null) { cfg.Semble.Version = s.Version; ConfigStore.Save(cfg, path); }
-                new SembleComponent(Services.Runner).Install(cfg.Semble, uv);
+                new SembleComponent(Services.Runner).Install(cfg.Semble, uv, skipIfPresent: false);
                 AnsiConsole.MarkupLine("[green]updated semble[/]");
                 return 0;
             default:
