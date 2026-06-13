@@ -35,7 +35,11 @@ public class PipelineTests
     [Fact]
     public void Preflight_AcceptsCleanRoot()
     {
-        var cfg = StackConfig.CreateDefault(Path.Combine(Path.GetTempPath(), "tsclean"));
-        InstallPipeline.Preflight(cfg); // must not throw
+        // Non-profile root: profile paths can be MSIX-virtualized when tests run inside a
+        // packaged host, which the guard (correctly) rejects.
+        var root = @"C:\ts-test-" + Guid.NewGuid().ToString("N");
+        var cfg = StackConfig.CreateDefault(root);
+        try { InstallPipeline.Preflight(cfg); /* must not throw */ }
+        finally { Directory.Delete(root, recursive: true); }
     }
 }

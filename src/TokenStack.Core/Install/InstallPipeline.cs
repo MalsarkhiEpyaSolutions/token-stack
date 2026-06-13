@@ -23,6 +23,49 @@ public sealed class InstallPipeline(
             throw new InvalidOperationException("Config invalid: " + string.Join("; ", errors)
                 + (cfg.InstallRoot.Contains(' ') ? " — choose a root without spaces." : ""));
         Directory.CreateDirectory(cfg.InstallRoot);
+        GuardAgainstMsixVirtualization(cfg.InstallRoot);
+    }
+
+    /// <summary>When this process runs inside an MSIX container (e.g. launched from Claude
+    /// Desktop), profile-dir writes are redirected into the package's LocalCache — the
+    /// Scheduled Task and normal terminals then see an EMPTY real path (0x80070002, observed
+    /// live). Detection: write a probe into installRoot and look for its shadow copy under
+    /// any package's LocalCache. Only profile paths can be virtualized, so non-profile
+    /// roots (the default) pass instantly.</summary>
+    public static void GuardAgainstMsixVirtualization(string installRoot)
+    {
+        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!installRoot.StartsWith(profile, StringComparison.OrdinalIgnoreCase))
+            return; // virtualization only applies inside the user profile
+
+        var probeName = $".ts-virt-probe-{Guid.NewGuid():N}";
+        var probePath = Path.Combine(installRoot, probeName);
+        File.WriteAllText(probePath, "probe");
+        try
+        {
+            var packages = Path.Combine(profile, "AppData", "Local", "Packages");
+            if (!Directory.Exists(packages)) return;
+
+            // Where would the shadow live? LocalCache mirrors the profile-relative layout.
+            var relative = Path.GetRelativePath(profile, installRoot); // e.g. AppData\Local\token-stack
+            var virtualized = Directory.EnumerateDirectories(packages)
+                .Select(pkg => Path.Combine(pkg, "LocalCache",
+                    relative.Replace(@"AppData\Local", "Local").Replace(@"AppData\Roaming", "Roaming"),
+                    probeName))
+                .Any(File.Exists);
+
+            if (virtualized)
+                throw new InvalidOperationException(
+                    $"installRoot '{installRoot}' is being VIRTUALIZED into an MSIX package " +
+                    "LocalCache (this process runs inside a packaged app's sandbox, e.g. Claude " +
+                    "Desktop). The Scheduled Task would see an empty real path. " +
+                    $"Use a non-profile root (default {Config.ConfigStore.DefaultRoot}) or run " +
+                    "the installer from a regular terminal.");
+        }
+        finally
+        {
+            try { File.Delete(probePath); } catch { /* best effort */ }
+        }
     }
 
     /// <summary>Pure step plan (testable). Run() bodies close over the instance services.</summary>

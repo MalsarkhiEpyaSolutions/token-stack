@@ -11,9 +11,15 @@ public static class ConfigStore
         PropertyNameCaseInsensitive = true,
     };
 
-    public static string DefaultPath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                     "token-stack", "config.json");
+    /// <summary>Default install root. Deliberately OUTSIDE the user profile: when the
+    /// installer runs inside an MSIX-packaged host (e.g. Claude Desktop spawning it),
+    /// every %LOCALAPPDATA% write is silently virtualized into the package's LocalCache —
+    /// invisible to Task Scheduler and normal terminals (split-brain, seen live).
+    /// C:\token-stack is never virtualized, has no spaces, and needs no admin
+    /// (Authenticated Users may create folders under C:\).</summary>
+    public static string DefaultRoot => @"C:\token-stack";
+
+    public static string DefaultPath => Path.Combine(DefaultRoot, "config.json");
 
     public static StackConfig Load(string path)
     {

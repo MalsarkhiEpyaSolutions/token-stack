@@ -19,8 +19,6 @@ internal static class Services
     {
         var path = ConfigStore.DefaultPath;
         if (File.Exists(path)) return ConfigStore.Load(path);
-        var root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "token-stack");
-        return StackConfig.CreateDefault(root);
+        return StackConfig.CreateDefault(ConfigStore.DefaultRoot);
     }
 }
