@@ -12,10 +12,12 @@ namespace TokenStack.Core.Install;
 /// models already exist locally).</summary>
 public static class OfflinePacker
 {
-    /// <summary>pip-download args (after the python exe). Both components with their mandatory
-    /// extras so the air-gapped install resolves entirely from the wheelhouse.</summary>
-    public static string PlanWheelhouseArgs(string wheelhouseDir) =>
-        $"-m pip download headroom-ai[proxy] semble[mcp] -d {Q(wheelhouseDir)}";
+    /// <summary>pip-WHEEL args (after the python exe). `pip wheel` BUILDS wheels on this online
+    /// machine — not `pip download`, because headroom-ai ships only sdists past 0.20.15 and an
+    /// sdist can't be built on an air-gapped target. Specs are pinned to match the online
+    /// install so both modes land the identical version.</summary>
+    public static string PlanWheelhouseArgs(string wheelhouseDir, string headroomSpec, string sembleSpec) =>
+        $"-m pip wheel {headroomSpec} {sembleSpec} -w {Q(wheelhouseDir)}";
 
     /// <summary>The online machine's HuggingFace cache (populated after the proxy runs once).</summary>
     public static string HfCacheSource() => Path.Combine(
@@ -45,11 +47,13 @@ public static class OfflinePacker
         log("  + python (portable, ~61MB)");
         FsUtil.CopyDirectory(basePythonDir, Path.Combine(vendor, "python"));
 
-        log("  + wheelhouse (pip download headroom-ai[proxy] + semble[mcp])");
+        log("  + wheelhouse (pip wheel — building pinned headroom + semble wheels)");
         var wheelhouse = Path.Combine(vendor, "wheelhouse");
-        var dl = runner.Run(basePython, PlanWheelhouseArgs(wheelhouse), 900000);
+        var headroomSpec = $"headroom-ai[proxy]=={cfg.Headroom.Version}";
+        var sembleSpec = SembleComponent.InstallSpec(cfg.Semble);
+        var dl = runner.Run(basePython, PlanWheelhouseArgs(wheelhouse, headroomSpec, sembleSpec), 900000);
         if (!dl.Ok)
-            throw new InvalidOperationException($"pip download failed: {dl.StdErr}{dl.StdOut}");
+            throw new InvalidOperationException($"pip wheel failed: {dl.StdErr}{dl.StdOut}");
 
         log("  + rtk.exe");
         var rtkSrc = Path.Combine(cfg.InstallRoot, "rtk", "rtk.exe");
