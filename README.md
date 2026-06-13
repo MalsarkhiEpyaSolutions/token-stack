@@ -51,9 +51,13 @@ The whole stack — or any single layer — pauses and resumes instantly (no rei
 `api.anthropic.com` — it doesn't just kill the proxy and strand you. Restart Claude after
 toggling for it to take effect.
 
-**The button:** `install` drops a **"Token Stack"** shortcut on your Desktop — double-click it
-to toggle the whole stack on/off (with a popup confirming the new state). Re-create it anytime
-with `.\token-stack.exe shortcut`.
+**The buttons:** `install` drops these on your Desktop (re-create anytime with
+`.\token-stack.exe shortcut`):
+- **Token Stack** (loose icon) — double-click toggles the *whole* stack on/off.
+- **Token Stack Controls** (folder) — one toggle per layer: *Headroom*, *RTK*, *Semble* — so you
+  can flip any single feature with a click.
+
+Each shows a popup confirming the new state.
 
 ## Commands
 
