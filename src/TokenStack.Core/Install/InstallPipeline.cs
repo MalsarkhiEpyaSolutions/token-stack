@@ -144,10 +144,11 @@ public sealed class InstallPipeline(
         ApplyClaudeWiring(cfg);
         try
         {
-            var lnk = new ShortcutCreator(runner).Create(Path.Combine(cfg.InstallRoot, "token-stack.exe"));
-            log($"      desktop button created: {lnk} (double-click to toggle the stack on/off)");
+            new ShortcutCreator(runner).CreateAll(Path.Combine(cfg.InstallRoot, "token-stack.exe"));
+            log("      desktop buttons created: 'Token Stack' (whole stack) + a 'Token Stack " +
+                "Controls' folder with per-layer toggles (Headroom/RTK/Semble)");
         }
-        catch (Exception ex) { log($"      (desktop shortcut skipped: {ex.Message})"); }
+        catch (Exception ex) { log($"      (desktop shortcuts skipped: {ex.Message})"); }
 
         log("[8/8] save config");
         if (persistConfig) ConfigStore.Save(cfg, ConfigStore.DefaultPath);

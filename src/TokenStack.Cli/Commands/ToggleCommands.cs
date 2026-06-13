@@ -98,9 +98,10 @@ public sealed class ShortcutCommand : Command
         if (!File.Exists(exe)) exe = Environment.ProcessPath ?? exe;
         try
         {
-            var lnk = new ShortcutCreator(Services.Runner).Create(exe);
-            AnsiConsole.MarkupLineInterpolated($"[green]Desktop button created:[/] {lnk}");
-            AnsiConsole.MarkupLine("Double-click it to toggle the whole stack on/off.");
+            var folder = new ShortcutCreator(Services.Runner).CreateAll(exe);
+            AnsiConsole.MarkupLine("[green]Desktop buttons created:[/]");
+            AnsiConsole.MarkupLine("  • [bold]Token Stack[/] (loose icon) — toggles the whole stack");
+            AnsiConsole.MarkupLineInterpolated($"  • [bold]{folder}[/] — folder with per-layer toggles (Headroom/RTK/Semble)");
             return 0;
         }
         catch (Exception ex)
