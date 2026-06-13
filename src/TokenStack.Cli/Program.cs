@@ -12,8 +12,8 @@ app.Configure(c =>
     c.AddCommand<StartCommand>("start").WithDescription("Start the Headroom proxy task");
     c.AddCommand<StopCommand>("stop").WithDescription("Stop the Headroom proxy task");
     c.AddCommand<RestartCommand>("restart").WithDescription("Restart with zombie recovery");
-    c.AddCommand<OnCommand>("on").WithDescription("Turn a layer (or all) ON: on [headroom|rtk|semble]");
-    c.AddCommand<OffCommand>("off").WithDescription("Turn a layer (or all) OFF: off [headroom|rtk|semble]");
+    c.AddCommand<OnCommand>("on").WithDescription("Turn a layer (or all) ON: on (headroom|rtk|semble)");
+    c.AddCommand<OffCommand>("off").WithDescription("Turn a layer (or all) OFF: off (headroom|rtk|semble)");
     c.AddCommand<ToggleCommand>("toggle").WithDescription("Flip a layer (or all) on/off");
     c.AddCommand<ShortcutCommand>("shortcut").WithDescription("Create the desktop toggle button");
     c.AddCommand<ConfigCommand>("config")
