@@ -86,21 +86,28 @@ public sealed class InstallPipeline(
     }
 
     /// <summary>persistConfig=false for `install --component X` repairs — the in-memory
-    /// enabled-flag narrowing must never be written back to config.json.</summary>
-    public void Run(StackConfig cfg, bool persistConfig = true)
+    /// enabled-flag narrowing must never be written back to config.json. source=null
+    /// auto-detects (offline iff a vendor bundle sits next to the running exe).</summary>
+    public void Run(StackConfig cfg, bool persistConfig = true, InstallSource? source = null)
     {
         log("[1/8] preflight");
         Preflight(cfg);
         DetectLegacyInstall();
 
-        log("[2/8] bootstrap: uv");
-        var uv = new Bootstrap(runner).EnsureUv();
+        var src = source ?? InstallSourceResolver.Resolve(
+            Path.GetDirectoryName(Environment.ProcessPath) ?? Directory.GetCurrentDirectory(), null);
+
+        log(src.IsOffline
+            ? $"[2/8] offline bundle detected ({src.VendorDir}) — installing without network"
+            : "[2/8] bootstrap: uv");
+        var uv = src.IsOffline ? src.Uv : new Bootstrap(runner).EnsureUv();
 
         var headroom = new HeadroomComponent(runner, port, http);
         if (cfg.Headroom.Enabled)
         {
-            log($"[3/8] headroom {cfg.Headroom.Version} (venv + [proxy] + task; cold load 25-105s)");
-            headroom.Install(cfg, uv);
+            log($"[3/8] headroom {cfg.Headroom.Version} (venv + [proxy] + task; cold load 25-105s)"
+                + (src.IsOffline ? " + seeding bundled HF models" : ""));
+            headroom.Install(cfg, uv, src);
             if (!headroom.WaitReady(cfg.Headroom.Port))
                 throw new InvalidOperationException(
                     $"Headroom did not become ready on :{cfg.Headroom.Port} within 120s. " +
@@ -111,15 +118,15 @@ public sealed class InstallPipeline(
         var rtk = new RtkComponent(runner, env);
         if (cfg.Rtk.Enabled)
         {
-            log($"[4/8] rtk {cfg.Rtk.Version} (download + PATH)");
-            rtk.Install(cfg);
+            log($"[4/8] rtk {cfg.Rtk.Version} ({(src.IsOffline ? "from bundle" : "download")} + PATH)");
+            rtk.Install(cfg, src);
         }
 
         var semble = new SembleComponent(runner);
         if (cfg.Semble.Enabled)
         {
             log("[5/8] semble (uv tool install + smoke search)");
-            semble.Install(cfg.Semble, uv);
+            semble.Install(cfg.Semble, uv, src);
             if (!semble.SmokeTest())
                 throw new InvalidOperationException(
                     "semble installed but the smoke search failed — run with --verbose for output.");

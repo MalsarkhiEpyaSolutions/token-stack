@@ -2,15 +2,14 @@ using System.Reflection;
 using System.Text.Json;
 using TokenStack.Core.Config;
 using TokenStack.Core.Windows;
+using static TokenStack.Core.Components.Quoting;
 
 namespace TokenStack.Core.Components;
 
 public sealed class HeadroomComponent(IProcessRunner runner, IPortProbe port, IHttpProbe http)
 {
     /// <summary>argv for `headroom proxy` as a Python list literal for the launcher template.
-    /// Mode map: token = default (no flag), cache = --mode cache, passthrough = --no-optimize.
-    /// NOTE: verify flag names against `headroom proxy --help` during integration (Task 12);
-    /// they come from the reference setup doc.</summary>
+    /// Mode map: token = default (no flag), cache = --mode cache, passthrough = --no-optimize.</summary>
     public static string BuildArgv(HeadroomConfig cfg)
     {
         var argv = new List<string> { "headroom", "proxy", "--port", cfg.Port.ToString() };
@@ -20,42 +19,70 @@ public sealed class HeadroomComponent(IProcessRunner runner, IPortProbe port, IH
         return JsonSerializer.Serialize(argv);
     }
 
-    public static string RenderLauncher(HeadroomConfig cfg)
+    /// <summary>Renders run_proxy.py. hfHome non-null (offline) pins HuggingFace to the bundled
+    /// model cache and forces offline mode, set BEFORE headroom imports huggingface_hub.</summary>
+    public static string RenderLauncher(HeadroomConfig cfg, string? hfHome)
     {
         using var stream = Assembly.GetExecutingAssembly()
             .GetManifestResourceStream("TokenStack.Core.Resources.run_proxy.py.tmpl")!;
         using var reader = new StreamReader(stream);
-        return reader.ReadToEnd().Replace("{{ARGV}}", BuildArgv(cfg));
+
+        var hfBlock = hfHome is null
+            ? ""
+            : $"os.environ[\"HF_HOME\"] = r\"{hfHome}\"\n" +
+              "os.environ[\"HF_HUB_OFFLINE\"] = \"1\"\n" +
+              "os.environ[\"TRANSFORMERS_OFFLINE\"] = \"1\"";
+
+        return reader.ReadToEnd()
+            .Replace("{{ARGV}}", BuildArgv(cfg))
+            .Replace("{{HF_ENV}}", hfBlock);
     }
 
-    /// <summary>The exact install commands, exposed for tests and --verbose tracing.</summary>
-    public List<string> PlanInstallCommands(StackConfig cfg, string uvPath)
+    /// <summary>The exact install commands, exposed for tests and --verbose tracing. Offline
+    /// uses the bundled python + a local wheelhouse; online provisions python + PyPI via uv.</summary>
+    public List<string> PlanInstallCommands(StackConfig cfg, string uvPath, InstallSource src)
     {
-        var venvPython = Path.Combine(cfg.InstallRoot, "venv", "Scripts", "python.exe");
+        var venv = Path.Combine(cfg.InstallRoot, "venv");
+        var venvPython = Path.Combine(venv, "Scripts", "python.exe");
+        if (src.IsOffline)
+        {
+            return new List<string>
+            {
+                $"{uvPath} venv --clear --python {Q(src.PythonDir)} {Q(venv)}",
+                $"{uvPath} pip install --python {Q(venvPython)} --offline --no-index " +
+                    $"--find-links {Q(src.Wheelhouse)} headroom-ai[proxy]=={cfg.Headroom.Version}",
+            };
+        }
         return new List<string>
         {
-            // --clear keeps install idempotent: a partial venv from an interrupted run is replaced
-            $"{uvPath} venv --clear --python {cfg.Headroom.PythonVersion} {Path.Combine(cfg.InstallRoot, "venv")}",
-            $"{uvPath} pip install --python {venvPython} headroom-ai[proxy]=={cfg.Headroom.Version}",
+            $"{uvPath} venv --clear --python {cfg.Headroom.PythonVersion} {Q(venv)}",
+            $"{uvPath} pip install --python {Q(venvPython)} headroom-ai[proxy]=={cfg.Headroom.Version}",
         };
     }
 
-    public void Install(StackConfig cfg, string uvPath)
+    public void Install(StackConfig cfg, string uvPath, InstallSource src)
     {
         var tasks = new ScheduledTaskManager(runner);
-        // Stop/kill FIRST: a running proxy (prior attempt, zombie, or the legacy install
-        // being adopted) locks the venv binaries — `uv venv --clear` would hit Access denied —
-        // and holds the port the new instance needs.
+        // Stop/kill FIRST: a running proxy locks the venv binaries (`uv venv --clear` → Access
+        // denied) and holds the port the new instance needs.
         if (tasks.Exists()) tasks.Stop();
         tasks.KillOrphans();
 
-        foreach (var cmd in PlanInstallCommands(cfg, uvPath))
+        foreach (var cmd in PlanInstallCommands(cfg, uvPath, src))
         {
-            var space = cmd.IndexOf(' ');
-            var r = runner.Run(cmd[..space], cmd[(space + 1)..], 600000);
+            // Split on the KNOWN exe prefix (not the first space) so a spaced uv path is safe.
+            var argLine = cmd.Substring(uvPath.Length).TrimStart();
+            var r = runner.Run(uvPath, argLine, 600000);
             if (!r.Ok) throw new InvalidOperationException($"Failed: {cmd}\n{r.StdErr}\n{r.StdOut}");
         }
-        File.WriteAllText(Path.Combine(cfg.InstallRoot, "run_proxy.py"), RenderLauncher(cfg.Headroom));
+
+        string? hfHome = null;
+        if (src.IsOffline)
+        {
+            hfHome = Path.Combine(cfg.InstallRoot, "hf-cache");
+            CopyDirectory(src.HfCache, hfHome); // seed the HuggingFace models for offline runtime
+        }
+        File.WriteAllText(Path.Combine(cfg.InstallRoot, "run_proxy.py"), RenderLauncher(cfg.Headroom, hfHome));
 
         var xml = TaskXml.Render(
             Path.Combine(cfg.InstallRoot, "venv", "Scripts", "pythonw.exe"),
@@ -79,8 +106,7 @@ public sealed class HeadroomComponent(IProcessRunner runner, IPortProbe port, IH
         return false;
     }
 
-    /// <summary>summary.api_requests from /stats, or null when unreachable (it is slow — ~20s
-    /// under load; hook mode uses a 3s budget and simply omits reqs on miss).</summary>
+    /// <summary>summary.api_requests from /stats, or null when unreachable.</summary>
     public long? ReadApiRequests(int proxyPort, int timeoutMs = 3000)
     {
         var body = http.Get($"http://127.0.0.1:{proxyPort}/stats", timeoutMs);
@@ -98,5 +124,16 @@ public sealed class HeadroomComponent(IProcessRunner runner, IPortProbe port, IH
         var tasks = new ScheduledTaskManager(runner);
         tasks.Stop();
         tasks.Unregister();
+    }
+
+    private static void CopyDirectory(string src, string dst)
+    {
+        if (!Directory.Exists(src))
+            throw new DirectoryNotFoundException($"offline HuggingFace cache missing in bundle: {src}");
+        Directory.CreateDirectory(dst);
+        foreach (var dir in Directory.GetDirectories(src, "*", SearchOption.AllDirectories))
+            Directory.CreateDirectory(Path.Combine(dst, Path.GetRelativePath(src, dir)));
+        foreach (var file in Directory.GetFiles(src, "*", SearchOption.AllDirectories))
+            File.Copy(file, Path.Combine(dst, Path.GetRelativePath(src, file)), overwrite: true);
     }
 }

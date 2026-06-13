@@ -37,12 +37,12 @@ public sealed class UpdateCommand : Command<UpdateCommand.Settings>
             }
             case "rtk":
                 if (s.Version is not null) { cfg.Rtk.Version = s.Version; ConfigStore.Save(cfg, path); }
-                new RtkComponent(Services.Runner, Services.Env).Install(cfg);
+                new RtkComponent(Services.Runner, Services.Env).Install(cfg, InstallSource.Online);
                 AnsiConsole.MarkupLine("[green]updated rtk[/]");
                 return 0;
             case "semble":
                 if (s.Version is not null) { cfg.Semble.Version = s.Version; ConfigStore.Save(cfg, path); }
-                new SembleComponent(Services.Runner).Install(cfg.Semble, uv, skipIfPresent: false);
+                new SembleComponent(Services.Runner).Install(cfg.Semble, uv, InstallSource.Online, skipIfPresent: false);
                 AnsiConsole.MarkupLine("[green]updated semble[/]");
                 return 0;
             default:

@@ -1,5 +1,6 @@
 using TokenStack.Core.Config;
 using TokenStack.Core.Windows;
+using static TokenStack.Core.Components.Quoting;
 
 namespace TokenStack.Core.Components;
 
@@ -15,16 +16,20 @@ public sealed class SembleComponent(IProcessRunner runner)
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         ".local", "bin", "semble.exe");
 
-    /// <summary>skipIfPresent: an unpinned ("latest") install treats an existing working exe
-    /// as satisfied — adoption-friendly and avoids rewriting uv's Roaming tool dir from inside
-    /// an MSIX container (live failure: os error 4395 deleting a real dir through the
-    /// virtualization overlay). Explicit `update` passes false to force the reinstall.</summary>
-    public void Install(SembleConfig cfg, string uvPath, bool verifyExe = true, bool skipIfPresent = true)
+    /// <summary>uv args. Offline pins to the bundled wheelhouse + python (no network);
+    /// online resolves from PyPI.</summary>
+    public static string InstallArgs(SembleConfig cfg, InstallSource src) => src.IsOffline
+        ? $"tool install --force --offline --no-index --find-links {Q(src.Wheelhouse)} " +
+          $"--python {Q(src.PythonDir)} {InstallSpec(cfg)}"
+        : $"tool install --force {InstallSpec(cfg)}";
+
+    public void Install(SembleConfig cfg, string uvPath, InstallSource src,
+        bool verifyExe = true, bool skipIfPresent = true)
     {
         if (skipIfPresent && cfg.Version == "latest" && File.Exists(ExePath()))
             return; // already installed — `token-stack update --component semble` upgrades
 
-        var r = runner.Run(uvPath, $"tool install --force {InstallSpec(cfg)}", 600000);
+        var r = runner.Run(uvPath, InstallArgs(cfg, src), 600000);
         if (!r.Ok)
             throw new InvalidOperationException($"uv tool install semble failed: {r.StdErr}{r.StdOut}");
         if (verifyExe && !File.Exists(ExePath()))

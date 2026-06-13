@@ -27,9 +27,11 @@ public class HeadroomTests
     public void RenderLauncher_SubstitutesArgv_AndKeepsRedirectBeforeImport()
     {
         var cfg = new HeadroomConfig { Port = 8123 };
-        var py = HeadroomComponent.RenderLauncher(cfg);
+        var py = HeadroomComponent.RenderLauncher(cfg, hfHome: null);
         Assert.Contains("\"8123\"", py);
         Assert.DoesNotContain("{{ARGV}}", py);
+        Assert.DoesNotContain("{{HF_ENV}}", py);
+        Assert.DoesNotContain("HF_HUB_OFFLINE", py); // online: no HF pinning
         // the load-bearing ordering: redirect must precede the import
         var redirect = py.IndexOf("sys.stdout = _log", StringComparison.Ordinal);
         var import_ = py.IndexOf("from headroom.cli import main", StringComparison.Ordinal);
@@ -37,17 +39,37 @@ public class HeadroomTests
     }
 
     [Fact]
-    public void InstallCommands_UseUvNativePipAgainstVenvPython()
+    public void RenderLauncher_Offline_InjectsHfOfflineEnv_BeforeImport()
     {
-        var runner = new FakeRunner();
-        var cfg = StackConfig.CreateDefault(@"C:\ts");
-        var hc = new HeadroomComponent(runner, new FakePort(), new FakeHttp());
-        var cmds = hc.PlanInstallCommands(cfg, uvPath: "uv");
+        var py = HeadroomComponent.RenderLauncher(new HeadroomConfig(), hfHome: @"C:\token-stack\hf-cache");
+        Assert.Contains(@"os.environ[""HF_HOME""] = r""C:\token-stack\hf-cache""", py);
+        Assert.Contains("os.environ[\"HF_HUB_OFFLINE\"] = \"1\"", py);
+        var hf = py.IndexOf("HF_HUB_OFFLINE", StringComparison.Ordinal);
+        var import_ = py.IndexOf("from headroom.cli import main", StringComparison.Ordinal);
+        Assert.True(hf >= 0 && import_ > hf); // env set before headroom imports huggingface_hub
+    }
+
+    [Fact]
+    public void InstallCommands_Online_UseUvNativePipAgainstVenvPython()
+    {
+        var hc = new HeadroomComponent(new FakeRunner(), new FakePort(), new FakeHttp());
+        var cmds = hc.PlanInstallCommands(StackConfig.CreateDefault(@"C:\ts"), "uv", InstallSource.Online);
 
         Assert.Contains(cmds, c => c == @"uv venv --clear --python 3.12 C:\ts\venv");
-        // uv venvs have NO pip inside — uv pip install with --python is the correct form
         Assert.Contains(cmds, c =>
             c == @"uv pip install --python C:\ts\venv\Scripts\python.exe headroom-ai[proxy]==0.24.0");
+    }
+
+    [Fact]
+    public void InstallCommands_Offline_UseVendorPythonAndFindLinks()
+    {
+        var hc = new HeadroomComponent(new FakeRunner(), new FakePort(), new FakeHttp());
+        var src = new InstallSource(true, @"C:\dl\vendor");
+        var cmds = hc.PlanInstallCommands(StackConfig.CreateDefault(@"C:\ts"), @"C:\dl\vendor\uv.exe", src);
+
+        Assert.Contains(cmds, c => c == @"C:\dl\vendor\uv.exe venv --clear --python C:\dl\vendor\python C:\ts\venv");
+        Assert.Contains(cmds, c => c ==
+            @"C:\dl\vendor\uv.exe pip install --python C:\ts\venv\Scripts\python.exe --offline --no-index --find-links C:\dl\vendor\wheelhouse headroom-ai[proxy]==0.24.0");
     }
 
     [Fact]

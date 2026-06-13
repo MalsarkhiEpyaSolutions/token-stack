@@ -15,11 +15,27 @@ public class SembleTests
     }
 
     [Fact]
+    public void InstallArgs_Online_ForceInstall()
+    {
+        Assert.Equal("tool install --force semble[mcp]",
+            SembleComponent.InstallArgs(new SembleConfig(), InstallSource.Online));
+    }
+
+    [Fact]
+    public void InstallArgs_Offline_FindLinksAndVendorPython()
+    {
+        var src = new InstallSource(true, @"C:\dl\vendor");
+        Assert.Equal(
+            @"tool install --force --offline --no-index --find-links C:\dl\vendor\wheelhouse --python C:\dl\vendor\python semble[mcp]",
+            SembleComponent.InstallArgs(new SembleConfig(), src));
+    }
+
+    [Fact]
     public void Install_RunsUvToolInstall_WithForceForUpdates()
     {
         var runner = new FakeRunner();
         var sc = new SembleComponent(runner);
-        sc.Install(new SembleConfig(), uvPath: "uv", verifyExe: false, skipIfPresent: false);
+        sc.Install(new SembleConfig(), uvPath: "uv", InstallSource.Online, verifyExe: false, skipIfPresent: false);
         Assert.Contains("uv tool install --force semble[mcp]", runner.Calls);
     }
 

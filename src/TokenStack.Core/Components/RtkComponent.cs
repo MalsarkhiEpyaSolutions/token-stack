@@ -29,28 +29,34 @@ public sealed class RtkComponent(IProcessRunner runner, IEnvStore env)
     public string RtkDir(StackConfig cfg) => Path.Combine(cfg.InstallRoot, "rtk");
     public string RtkExe(StackConfig cfg) => Path.Combine(RtkDir(cfg), "rtk.exe");
 
-    public void Install(StackConfig cfg)
+    public void Install(StackConfig cfg, InstallSource src)
     {
-        var url = ReleaseUrl(cfg.Rtk);
-        var tmpZip = Path.Combine(cfg.InstallRoot, "tmp", "rtk.zip");
-        Directory.CreateDirectory(Path.GetDirectoryName(tmpZip)!);
+        Directory.CreateDirectory(RtkDir(cfg));
+        if (src.IsOffline)
+        {
+            if (!File.Exists(src.RtkExe))
+                throw new FileNotFoundException($"offline rtk.exe missing in bundle: {src.RtkExe}");
+            File.Copy(src.RtkExe, RtkExe(cfg), overwrite: true);
+        }
+        else
+        {
+            var url = ReleaseUrl(cfg.Rtk);
+            var tmpZip = Path.Combine(cfg.InstallRoot, "tmp", "rtk.zip");
+            Directory.CreateDirectory(Path.GetDirectoryName(tmpZip)!);
+            using (var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) })
+            using (var stream = http.GetStreamAsync(url).GetAwaiter().GetResult())
+            using (var file = File.Create(tmpZip))
+                stream.CopyTo(file);
+            ExtractRtkExe(tmpZip, RtkDir(cfg));
+            File.Delete(tmpZip);
+        }
 
-        using (var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) })
-        using (var stream = http.GetStreamAsync(url).GetAwaiter().GetResult())
-        using (var file = File.Create(tmpZip))
-            stream.CopyTo(file);
-
-        ExtractRtkExe(tmpZip, RtkDir(cfg));
-        File.Delete(tmpZip);
         UserPath.EnsureContains(env, RtkDir(cfg));
-
         var verify = runner.Run(RtkExe(cfg), "--version", 15000);
         if (!verify.Ok)
-            throw new InvalidOperationException($"rtk.exe extracted but failed to run: {verify.StdErr}");
+            throw new InvalidOperationException($"rtk.exe placed but failed to run: {verify.StdErr}");
     }
 
-    /// <summary>Hook wiring is done by the pipeline via ClaudeSurgeon.EnsureRtkHook —
-    /// kept out of this class so all settings.json writes share one editor/backup path.</summary>
     public bool IsOnPath() => runner.Run("rtk", "--version", 10000).Ok;
 
     public void Unwire(StackConfig cfg) => UserPath.Remove(env, RtkDir(cfg));
