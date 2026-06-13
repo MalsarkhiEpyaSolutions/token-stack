@@ -28,14 +28,19 @@ public sealed class ScheduledTaskManager(IProcessRunner runner)
     public void Stop() => runner.Run("schtasks", $"/end /tn {TaskName}");
     public void Unregister() => runner.Run("schtasks", $"/delete /tn {TaskName} /f");
 
-    /// <summary>Zombie recovery: stop task, kill orphan pythonw running run_proxy, restart.</summary>
-    public void RestartWithZombieKill()
-    {
-        Stop();
+    /// <summary>Kill any pythonw still running a proxy launcher — covers zombies AND the
+    /// legacy hand-built install holding the port during adoption.</summary>
+    public void KillOrphans() =>
         runner.Run("powershell",
             "-NoProfile -Command \"Get-CimInstance Win32_Process -Filter \\\"Name='pythonw.exe'\\\" | " +
             "Where-Object { $_.CommandLine -match 'run_proxy|headroom' } | " +
             "ForEach-Object { Stop-Process -Id $_.ProcessId -Force }\"");
+
+    /// <summary>Zombie recovery: stop task, kill orphan pythonw running run_proxy, restart.</summary>
+    public void RestartWithZombieKill()
+    {
+        Stop();
+        KillOrphans();
         Thread.Sleep(2000);
         Start();
     }

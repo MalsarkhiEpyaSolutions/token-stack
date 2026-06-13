@@ -50,6 +50,10 @@ public sealed class HeadroomComponent(IProcessRunner runner, IPortProbe port, IH
         File.WriteAllText(Path.Combine(cfg.InstallRoot, "run_proxy.py"), RenderLauncher(cfg.Headroom));
 
         var tasks = new ScheduledTaskManager(runner);
+        // Free the port first: stop any prior task instance and kill orphaned proxies
+        // (incl. a legacy hand-built install being adopted) before starting the managed one.
+        if (tasks.Exists()) tasks.Stop();
+        tasks.KillOrphans();
         var xml = TaskXml.Render(
             Path.Combine(cfg.InstallRoot, "venv", "Scripts", "pythonw.exe"),
             Path.Combine(cfg.InstallRoot, "run_proxy.py"),
