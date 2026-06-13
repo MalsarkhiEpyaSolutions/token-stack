@@ -35,14 +35,26 @@ public sealed class StatusCommand : Command<StatusCommand.Settings>
 
         var t = new Table().AddColumns("Layer", "State", "Detail");
         t.AddRow("Headroom",
-            !status.TaskRunning ? "[red]DOWN[/]" : status.PortListening ? "[green]up[/]" : "[yellow]starting[/]",
-            $"port {status.Port}, {(status.Routed ? "[green]ROUTED[/]" : "[red]BYPASSED[/]")}" +
-            (status.Reqs is { } n ? $", reqs={n}" : ""));
-        t.AddRow("RTK", status.RtkOnPath ? "[green]up[/]" : "[red]MISSING[/]", "PreToolUse Bash filter");
-        t.AddRow("Semble", status.SembleWired ? "[green]up[/]" : "[red]MISSING[/]", "stdio MCP (absolute exe)");
+            !status.HeadroomEnabled ? "[grey]OFF[/]"
+                : !status.TaskRunning ? "[red]DOWN[/]"
+                : status.PortListening ? "[green]up[/]" : "[yellow]starting[/]",
+            !status.HeadroomEnabled ? "toggled off (`token-stack on headroom`)"
+                : $"port {status.Port}, {(status.Routed ? "[green]ROUTED[/]" : "[red]BYPASSED[/]")}" +
+                  (status.Reqs is { } n ? $", reqs={n}" : ""));
+        t.AddRow("RTK",
+            !status.RtkEnabled ? "[grey]OFF[/]" : status.RtkOnPath ? "[green]up[/]" : "[red]MISSING[/]",
+            "PreToolUse Bash filter");
+        t.AddRow("Semble",
+            !status.SembleEnabled ? "[grey]OFF[/]" : status.SembleWired ? "[green]up[/]" : "[red]MISSING[/]",
+            "stdio MCP (absolute exe)");
         AnsiConsole.Write(t);
         Console.WriteLine();
         Console.WriteLine(StatusLine.Build(status));
-        return status is { TaskRunning: true, PortListening: true, RtkOnPath: true, SembleWired: true } ? 0 : 1;
+
+        // Healthy = every ENABLED layer is up; a layer that's intentionally OFF is not a failure.
+        var healthy = (!status.HeadroomEnabled || (status.TaskRunning && status.PortListening))
+            && (!status.RtkEnabled || status.RtkOnPath)
+            && (!status.SembleEnabled || status.SembleWired);
+        return healthy ? 0 : 1;
     }
 }

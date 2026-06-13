@@ -133,7 +133,7 @@ public sealed class InstallPipeline(
         }
 
         log("[6/8] routing");
-        if (cfg.Routing.Desktop)
+        if (cfg.Routing.Desktop && cfg.Headroom.Enabled)
         {
             new RoutingManager(env).ApplyDesktop(cfg.Headroom.Port);
             log("      User-scope ANTHROPIC_BASE_URL set (Desktop ignores settings.json env)");
@@ -142,6 +142,12 @@ public sealed class InstallPipeline(
         log("[7/8] claude wiring (settings.json + .claude.json, one backup each)");
         CopySelfToRoot(cfg);
         ApplyClaudeWiring(cfg);
+        try
+        {
+            var lnk = new ShortcutCreator(runner).Create(Path.Combine(cfg.InstallRoot, "token-stack.exe"));
+            log($"      desktop button created: {lnk} (double-click to toggle the stack on/off)");
+        }
+        catch (Exception ex) { log($"      (desktop shortcut skipped: {ex.Message})"); }
 
         log("[8/8] save config");
         if (persistConfig) ConfigStore.Save(cfg, ConfigStore.DefaultPath);
@@ -171,7 +177,7 @@ public sealed class InstallPipeline(
         else
             changed |= ClaudeSurgeon.RemoveSessionStatusHook(settings);
 
-        if (cfg.Routing.Cli)
+        if (cfg.Routing.Cli && cfg.Headroom.Enabled) // routing only makes sense when the proxy is on
             changed |= ClaudeSurgeon.SetEnvBaseUrl(settings, RoutingManager.ProxyUrl(cfg.Headroom.Port));
         else
             changed |= ClaudeSurgeon.RemoveEnvBaseUrl(settings);
@@ -242,6 +248,8 @@ public sealed class InstallPipeline(
         try { new SembleComponent(runner).Unwire(new Bootstrap(runner).EnsureUv()); }
         catch { log("  (uv unavailable — skipped `uv tool uninstall semble`)"); }
         new RtkComponent(runner, env).Unwire(cfg);
+
+        try { new ShortcutCreator(runner).Remove(); log("removed desktop button"); } catch { }
 
         if (!keepConfig && File.Exists(ConfigStore.DefaultPath))
             File.Delete(ConfigStore.DefaultPath);
