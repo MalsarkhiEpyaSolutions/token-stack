@@ -34,7 +34,8 @@ public sealed class HeadroomComponent(IProcessRunner runner, IPortProbe port, IH
         var venvPython = Path.Combine(cfg.InstallRoot, "venv", "Scripts", "python.exe");
         return new List<string>
         {
-            $"{uvPath} venv --python {cfg.Headroom.PythonVersion} {Path.Combine(cfg.InstallRoot, "venv")}",
+            // --clear keeps install idempotent: a partial venv from an interrupted run is replaced
+            $"{uvPath} venv --clear --python {cfg.Headroom.PythonVersion} {Path.Combine(cfg.InstallRoot, "venv")}",
             $"{uvPath} pip install --python {venvPython} headroom-ai[proxy]=={cfg.Headroom.Version}",
         };
     }

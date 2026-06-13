@@ -44,7 +44,7 @@ public class HeadroomTests
         var hc = new HeadroomComponent(runner, new FakePort(), new FakeHttp());
         var cmds = hc.PlanInstallCommands(cfg, uvPath: "uv");
 
-        Assert.Contains(cmds, c => c == @"uv venv --python 3.12 C:\ts\venv");
+        Assert.Contains(cmds, c => c == @"uv venv --clear --python 3.12 C:\ts\venv");
         // uv venvs have NO pip inside — uv pip install with --python is the correct form
         Assert.Contains(cmds, c =>
             c == @"uv pip install --python C:\ts\venv\Scripts\python.exe headroom-ai[proxy]==0.24.0");
