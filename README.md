@@ -32,7 +32,24 @@ API key and model are never touched — they pass straight through. The status l
 then reads `ROUTED→Kimi` (or GLM / MiniMax / OpenRouter). Plain Claude Code is
 unaffected.
 
-## Run several models in parallel (`launcher`)
+## Run several models in parallel WITH savings (`profile`) — recommended
+
+`.\token-saver.exe profile add` gives a model its **own compression proxy** on its own port,
+so it runs in parallel with Claude and other models **and** gets token savings. It creates a
+desktop launcher **and an on/off button** (in `Token Stack Controls`). Requires a prior
+`install` (profiles reuse its proxy venv).
+
+```
+token-saver profile add           # pick model, paste key → proxy + launcher + on/off button
+token-saver profile list          # models + ON/OFF state
+token-saver profile on|off|toggle <name>
+token-saver profile remove <name>
+```
+
+Each running model's proxy uses a few hundred MB RAM + one cold-load, so keep only the ones
+you're using ON (that's what the buttons are for). Savings show up in `token-saver gain`.
+
+## Quick parallel WITHOUT savings (`launcher`)
 
 `.\token-saver.exe launcher` makes a desktop `Claude - <name>.cmd` for a chosen backend
 (GLM/Kimi/MiniMax/OpenRouter, or **Custom** = any Anthropic-compatible endpoint + model +
