@@ -2,9 +2,10 @@ namespace TokenStack.Core.Windows;
 
 /// <summary>schtasks.exe wrapper for the HeadroomProxy task. Uses /xml registration
 /// (full fidelity) and /query CSV for state.</summary>
-public sealed class ScheduledTaskManager(IProcessRunner runner)
+public sealed class ScheduledTaskManager(IProcessRunner runner, string? taskName = null)
 {
-    public const string TaskName = "HeadroomProxy";
+    public const string DefaultTaskName = "HeadroomProxy";
+    public string TaskName { get; } = taskName ?? DefaultTaskName;
 
     public bool Exists() =>
         runner.Run("schtasks", $"/query /tn {TaskName}").Ok;
@@ -18,7 +19,7 @@ public sealed class ScheduledTaskManager(IProcessRunner runner)
     public void RegisterOrUpdate(string xml, string tempDir)
     {
         Directory.CreateDirectory(tempDir);
-        var xmlPath = Path.Combine(tempDir, "HeadroomProxy.task.xml");
+        var xmlPath = Path.Combine(tempDir, $"{TaskName}.task.xml");
         File.WriteAllText(xmlPath, xml, System.Text.Encoding.Unicode); // schtasks expects UTF-16
         var r = runner.Run("schtasks", $"/create /tn {TaskName} /xml \"{xmlPath}\" /f");
         if (!r.Ok) throw new InvalidOperationException($"schtasks /create failed: {r.StdErr}{r.StdOut}");

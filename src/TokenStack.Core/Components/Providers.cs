@@ -53,6 +53,17 @@ public static class ProfilePorts
     }
 }
 
+/// <summary>Derives the per-profile wiring names from a profile's friendly name/port.</summary>
+public static class ProfileWiring
+{
+    public static string Slug(string name) =>
+        new((name ?? "").Where(char.IsLetterOrDigit).ToArray());
+
+    public static string TaskName(string name) => "TokenSaver-" + Slug(name);
+    public static string ScriptFile(string name) => $"run_proxy_{Slug(name)}.py";
+    public static string ProxyUrl(int port) => $"http://127.0.0.1:{port}";
+}
+
 /// <summary>Decides the proxy upstream from the user's CURRENT Claude Code base URL.</summary>
 public static class ProviderDetection
 {

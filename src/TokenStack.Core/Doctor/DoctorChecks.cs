@@ -206,7 +206,7 @@ public sealed class TaskMisconfiguredCheck : IDoctorCheck
     public CheckResult Detect(DoctorContext ctx)
     {
         if (!ctx.Config.Headroom.Enabled) return new(Id, true, "headroom disabled", false);
-        var r = ctx.Runner.Run("schtasks", $"/query /tn {ScheduledTaskManager.TaskName} /xml", 15000);
+        var r = ctx.Runner.Run("schtasks", $"/query /tn {ScheduledTaskManager.DefaultTaskName} /xml", 15000);
         if (!r.Ok) return new(Id, false, "HeadroomProxy task not registered", true);
         var expectedCmd = Path.Combine(ctx.Config.InstallRoot, "venv", "Scripts", "pythonw.exe");
         return r.StdOut.Contains(expectedCmd, StringComparison.OrdinalIgnoreCase)
