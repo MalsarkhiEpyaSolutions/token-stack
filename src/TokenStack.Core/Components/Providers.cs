@@ -38,6 +38,21 @@ public static class Providers
     };
 }
 
+/// <summary>Ports for per-model profile proxies. 8787 is reserved for the default Claude
+/// proxy; profiles take 8788+.</summary>
+public static class ProfilePorts
+{
+    public const int Base = 8788;
+
+    public static int NextFree(IEnumerable<int> used)
+    {
+        var taken = new HashSet<int>(used);
+        for (var p = Base; p < 8800; p++)
+            if (!taken.Contains(p)) return p;
+        throw new InvalidOperationException("no free profile port in 8788-8799");
+    }
+}
+
 /// <summary>Decides the proxy upstream from the user's CURRENT Claude Code base URL.</summary>
 public static class ProviderDetection
 {

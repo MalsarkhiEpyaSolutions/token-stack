@@ -12,8 +12,19 @@ public sealed class StackConfig
     [JsonPropertyName("routing")] public RoutingConfig Routing { get; set; } = new();
     [JsonPropertyName("hooks")] public HooksConfig Hooks { get; set; } = new();
     [JsonPropertyName("bootstrap")] public BootstrapConfig Bootstrap { get; set; } = new();
+    [JsonPropertyName("profiles")] public List<ProfileConfig> Profiles { get; set; } = new();
 
     public static StackConfig CreateDefault(string installRoot) => new() { InstallRoot = installRoot };
+}
+
+/// <summary>One extra model that runs its own Headroom proxy (own port → own upstream), so it
+/// runs in parallel with Claude and other profiles and gets compression/savings too.</summary>
+public sealed class ProfileConfig
+{
+    [JsonPropertyName("name")] public string Name { get; set; } = "";
+    [JsonPropertyName("upstream")] public string Upstream { get; set; } = "";
+    [JsonPropertyName("model")] public string Model { get; set; } = "";
+    [JsonPropertyName("port")] public int Port { get; set; }
 }
 
 public sealed class HeadroomConfig
