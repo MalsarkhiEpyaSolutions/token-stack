@@ -39,6 +39,27 @@ public class HeadroomTests
     }
 
     [Fact]
+    public void RenderLauncher_NoUpstream_OmitsTargetEnv()
+    {
+        var cfg = new HeadroomConfig(); // UpstreamUrl == ""
+        var py = HeadroomComponent.RenderLauncher(cfg, hfHome: null);
+        Assert.DoesNotContain("ANTHROPIC_TARGET_API_URL", py);
+        Assert.DoesNotContain("{{TARGET_ENV}}", py);
+    }
+
+    [Fact]
+    public void RenderLauncher_WithUpstream_InjectsTargetEnv()
+    {
+        var cfg = new HeadroomConfig { UpstreamUrl = "https://api.moonshot.ai/anthropic" };
+        var py = HeadroomComponent.RenderLauncher(cfg, hfHome: null);
+        Assert.Contains(
+            "os.environ[\"ANTHROPIC_TARGET_API_URL\"] = r\"https://api.moonshot.ai/anthropic\"", py);
+        var target = py.IndexOf("ANTHROPIC_TARGET_API_URL", StringComparison.Ordinal);
+        var import_ = py.IndexOf("from headroom.cli import main", StringComparison.Ordinal);
+        Assert.True(target >= 0 && import_ > target); // set before headroom imports
+    }
+
+    [Fact]
     public void RenderLauncher_Offline_InjectsHfOfflineEnv_BeforeImport()
     {
         var py = HeadroomComponent.RenderLauncher(new HeadroomConfig(), hfHome: @"C:\token-stack\hf-cache");

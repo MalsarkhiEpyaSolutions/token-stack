@@ -33,9 +33,14 @@ public sealed class HeadroomComponent(IProcessRunner runner, IPortProbe port, IH
               "os.environ[\"HF_HUB_OFFLINE\"] = \"1\"\n" +
               "os.environ[\"TRANSFORMERS_OFFLINE\"] = \"1\"";
 
+        var targetBlock = string.IsNullOrWhiteSpace(cfg.UpstreamUrl)
+            ? ""
+            : $"os.environ[\"ANTHROPIC_TARGET_API_URL\"] = r\"{cfg.UpstreamUrl}\"";
+
         return reader.ReadToEnd()
             .Replace("{{ARGV}}", BuildArgv(cfg))
-            .Replace("{{HF_ENV}}", hfBlock);
+            .Replace("{{HF_ENV}}", hfBlock)
+            .Replace("{{TARGET_ENV}}", targetBlock);
     }
 
     /// <summary>The exact install commands, exposed for tests and --verbose tracing. Offline
