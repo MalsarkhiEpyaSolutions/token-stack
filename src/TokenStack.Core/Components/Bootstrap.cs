@@ -6,36 +6,45 @@ namespace TokenStack.Core.Components;
 /// Python for Headroom and the tool install for Semble).</summary>
 public sealed class Bootstrap(IProcessRunner runner)
 {
-    /// <summary>Returns the uv invocation path, installing uv if needed.
-    /// Order: PATH → known install dir → winget → standalone installer.</summary>
+    /// <summary>Deterministic install target of the astral standalone installer.</summary>
+    public static string LocalUvExe() => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "bin", "uv.exe");
+
+    /// <summary>(exe, args) for the standalone installer. Uses the FULL powershell.exe path —
+    /// launching bare "powershell" via Process.Start(UseShellExecute=false) fails with
+    /// "cannot find the file specified" on machines where it isn't PATH-resolvable to a child
+    /// process (seen live). Installs uv to LocalUvExe() with no PATH/winget dependency.</summary>
+    public static (string Exe, string Args) StandaloneInstallPlan() => (
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe"),
+        "-NoProfile -ExecutionPolicy Bypass -Command \"irm https://astral.sh/uv/install.ps1 | iex\"");
+
+    /// <summary>Returns the uv invocation path, installing uv if needed. Standalone installer
+    /// FIRST (deterministic target, no winget needed, continues in THIS process — no "open a
+    /// new terminal"); winget only as a fallback.</summary>
     public string EnsureUv()
     {
         if (runner.Run("uv", "--version", 15000).Ok) return "uv";
-
-        var local = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "bin", "uv.exe");
+        var local = LocalUvExe();
         if (File.Exists(local)) return local;
 
+        // 1. Standalone installer — lands at LocalUvExe(), which we then return directly.
+        var (pwsh, args) = StandaloneInstallPlan();
+        var standalone = runner.Run(pwsh, args, 300000);
+        if (File.Exists(local)) return local;
+
+        // 2. Fallback: winget (may be absent or install to an unpredictable, PATH-only location).
         var winget = runner.Run("winget",
             "install --id astral-sh.uv -e --accept-source-agreements --accept-package-agreements",
             300000);
-        if (!winget.Ok)
-        {
-            var standalone = runner.Run("powershell",
-                "-NoProfile -ExecutionPolicy Bypass -Command \"irm https://astral.sh/uv/install.ps1 | iex\"",
-                300000);
-            if (!standalone.Ok)
-                throw new InvalidOperationException(
-                    "Could not install uv via winget or the standalone installer. " +
-                    "Install manually from https://docs.astral.sh/uv/ then re-run. " +
-                    $"winget: {winget.StdErr} | standalone: {standalone.StdErr}");
-        }
-
-        if (runner.Run("uv", "--version", 15000).Ok) return "uv";
         if (File.Exists(local)) return local;
+        if (runner.Run("uv", "--version", 15000).Ok) return "uv";
+
         throw new InvalidOperationException(
-            "uv was installed but is not yet resolvable in this process. " +
-            "Open a new terminal and re-run `token-stack install`.");
+            "Could not install uv automatically. Install it manually in this terminal:\n" +
+            "  powershell -ExecutionPolicy Bypass -c \"irm https://astral.sh/uv/install.ps1 | iex\"\n" +
+            "then open a NEW terminal and re-run `token-stack install`.\n" +
+            $"standalone: {standalone.StdErr}{standalone.StdOut}\nwinget: {winget.StdErr}{winget.StdOut}");
     }
 
     /// <summary>The actual uv.exe FILE path (for bundling into an offline pack). EnsureUv may
