@@ -7,8 +7,8 @@ app.Configure(c =>
     c.SetApplicationName("token-saver");
     c.AddCommand<InstallCommand>("install")
         .WithDescription("Install + wire the full stack (idempotent)");
-    c.AddCommand<SetupCommand>("setup")
-        .WithDescription("Add a vendor API key (GLM/Kimi/MiniMax/OpenRouter) to Claude settings");
+    c.AddCommand<LauncherCommand>("launcher")
+        .WithDescription("Make a desktop launcher for a model (GLM/Kimi/MiniMax/OpenRouter/custom) — runs in parallel, doesn't touch your normal Claude");
     c.AddCommand<StatusCommand>("status")
         .WithDescription("Live stack status (--hook = one-line session mode)");
     c.AddCommand<StartCommand>("start").WithDescription("Start the Headroom proxy task");

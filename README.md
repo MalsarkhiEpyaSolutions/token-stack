@@ -32,10 +32,18 @@ API key and model are never touched — they pass straight through. The status l
 then reads `ROUTED→Kimi` (or GLM / MiniMax / OpenRouter). Plain Claude Code is
 unaffected.
 
-**Don't have the vendor set up yet?** Run `.\token-saver.exe setup` — an interactive
-screen that picks the provider, takes your API key (masked), and writes it into
-Claude's `settings.json` (your key lives there, never in TokenSaver). Then
-`.\token-saver.exe install` routes it through the proxy.
+## Run several models in parallel (`launcher`)
+
+`.\token-saver.exe launcher` makes a desktop `Claude - <name>.cmd` for a chosen backend
+(GLM/Kimi/MiniMax/OpenRouter, or **Custom** = any Anthropic-compatible endpoint + model +
+key). Double-click it to run Claude Code on that model **in its own window** — your normal
+`claude` and other launchers keep running side by side; nothing global is changed. Make one
+per model to have Claude, MiniMax, OpenRouter… all open at once.
+
+*(Claude Code speaks the Anthropic wire format, so a launcher works with any
+Anthropic-compatible endpoint. OpenAI-only local servers like Ollama would need a
+translation proxy — not covered here. The key is stored in the .cmd in plain text; keep it
+private.)*
 
 ## Offline / air-gapped machines
 
@@ -86,7 +94,7 @@ Each shows a popup confirming the new state.
 | Command | What |
 |---|---|
 | `install` | full install/repair (idempotent; `--component headroom\|rtk\|semble`; `--offline`/`--online`) |
-| `setup` | interactive: add a vendor API key (GLM/Kimi/MiniMax/OpenRouter) into Claude's settings |
+| `launcher` | interactive: make a desktop launcher for a model (GLM/Kimi/MiniMax/OpenRouter/custom), runs in parallel |
 | `on` / `off` / `toggle` `[layer]` | pause/resume whole stack or one layer (no reinstall) |
 | `shortcut` | (re)create the desktop toggle button |
 | `pack` | build an offline bundle (run on an online machine) |
