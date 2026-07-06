@@ -30,7 +30,7 @@ public sealed class UpdateCommand : Command<UpdateCommand.Settings>
                 if (s.Version is not null) { cfg.Headroom.Version = s.Version; ConfigStore.Save(cfg, path); }
                 var py = Path.Combine(cfg.InstallRoot, "venv", "Scripts", "python.exe");
                 var r = Services.Runner.Run(uv,
-                    $"pip install --python {py} headroom-ai[proxy]=={cfg.Headroom.Version}", 600000);
+                    $"pip install --python {py} --no-build headroom-ai[proxy]=={cfg.Headroom.Version}", 600000);
                 if (!r.Ok) { AnsiConsole.MarkupLineInterpolated($"[red]{r.StdErr}[/]"); return 1; }
                 AnsiConsole.MarkupLine("[green]updated headroom[/] — run `token-stack restart` to load it.");
                 return 0;
