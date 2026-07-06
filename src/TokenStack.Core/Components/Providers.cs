@@ -12,6 +12,7 @@ public static class Providers
         ("moonshot.cn", "Kimi"),
         ("minimax.io", "MiniMax"),
         ("minimaxi.com", "MiniMax"),
+        ("openrouter.ai", "OpenRouter"),
     };
 
     public static string Label(string upstreamUrl)

@@ -13,6 +13,7 @@ public class ProvidersTests
     [InlineData("https://api.moonshot.cn/anthropic", "Kimi")]
     [InlineData("https://api.minimax.io/anthropic", "MiniMax")]
     [InlineData("https://api.minimaxi.com/anthropic", "MiniMax")]
+    [InlineData("https://openrouter.ai/api", "OpenRouter")]
     [InlineData("https://some.other.host/anthropic", "Custom")]
     public void Label_MapsHostToVendor(string url, string expected) =>
         Assert.Equal(expected, Providers.Label(url));

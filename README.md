@@ -22,14 +22,15 @@ The installer copies itself to `C:\token-stack\token-saver.exe` — you can dele
 unzipped download afterwards. (The install directory stays `C:\token-stack` for
 seamless upgrades from older versions.)
 
-## GLM / Kimi / MiniMax (Claude Code with a vendor endpoint)
+## GLM / Kimi / MiniMax / OpenRouter (Claude Code with a vendor endpoint)
 
 If your Claude Code is already pointed at a vendor Anthropic-compatible endpoint
-(`ANTHROPIC_BASE_URL` = `api.z.ai/api/anthropic`, `api.moonshot.ai/anthropic`, or
-`api.minimax.io/anthropic`), `install` **detects and adopts it**: it inserts the
-Headroom proxy in front and forwards to that vendor. Your vendor API key and model
-are never touched — they pass straight through. The status line then reads
-`ROUTED→Kimi` (or GLM / MiniMax). Plain Claude Code is unaffected.
+(`ANTHROPIC_BASE_URL` = `api.z.ai/api/anthropic`, `api.moonshot.ai/anthropic`,
+`api.minimax.io/anthropic`, or `openrouter.ai/api`), `install` **detects and adopts
+it**: it inserts the Headroom proxy in front and forwards to that vendor. Your vendor
+API key and model are never touched — they pass straight through. The status line
+then reads `ROUTED→Kimi` (or GLM / MiniMax / OpenRouter). Plain Claude Code is
+unaffected.
 
 ## Offline / air-gapped machines
 
