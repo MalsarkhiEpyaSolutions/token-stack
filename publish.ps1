@@ -8,7 +8,7 @@ dotnet publish src/TokenStack.Cli -c Release -r win-x64 --self-contained `
   -p:Version=$Version -o publish-out
 if ($LASTEXITCODE -ne 0) { throw "publish failed" }
 New-Item -ItemType Directory -Force dist | Out-Null
-Compress-Archive -Force -DestinationPath "dist/token-stack-v$Version.zip" `
-  -Path "publish-out/token-stack.exe", "README.md"
+Compress-Archive -Force -DestinationPath "dist/token-saver-v$Version.zip" `
+  -Path "publish-out/token-saver.exe", "README.md"
 Remove-Item -Recurse -Force publish-out
-Write-Host "dist/token-stack-v$Version.zip ready" -ForegroundColor Green
+Write-Host "dist/token-saver-v$Version.zip ready" -ForegroundColor Green

@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using TokenStack.Core.Components;
 
 namespace TokenStack.Core.Claude;
 
@@ -85,7 +86,8 @@ public static class ClaudeSurgeon
         var cmd = FirstCommand(entry);
         return cmd is not null && (LegacySessionMarkers.Any(m =>
             cmd.Contains(m, StringComparison.OrdinalIgnoreCase))
-            || cmd.Contains("token-stack.exe", StringComparison.OrdinalIgnoreCase));
+            || cmd.Contains(Branding.ExeName, StringComparison.OrdinalIgnoreCase)
+            || cmd.Contains(Branding.LegacyExeName, StringComparison.OrdinalIgnoreCase));
     }
 
     // ---------- env.ANTHROPIC_BASE_URL ----------

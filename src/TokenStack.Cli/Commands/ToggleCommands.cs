@@ -94,7 +94,7 @@ public sealed class ShortcutCommand : Command
 {
     protected override int Execute(CommandContext context, CancellationToken ct)
     {
-        var exe = Path.Combine(Services.LoadConfigOrDefault().InstallRoot, "token-stack.exe");
+        var exe = Path.Combine(Services.LoadConfigOrDefault().InstallRoot, Branding.ExeName);
         if (!File.Exists(exe)) exe = Environment.ProcessPath ?? exe;
         try
         {

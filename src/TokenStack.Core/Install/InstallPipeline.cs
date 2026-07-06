@@ -152,7 +152,7 @@ public sealed class InstallPipeline(
         ApplyClaudeWiring(cfg);
         try
         {
-            new ShortcutCreator(runner).CreateAll(Path.Combine(cfg.InstallRoot, "token-stack.exe"));
+            new ShortcutCreator(runner).CreateAll(Path.Combine(cfg.InstallRoot, Branding.ExeName));
             log("      desktop buttons created: 'Token Stack' (whole stack) + a 'Token Stack " +
                 "Controls' folder with per-layer toggles (Headroom/RTK/Semble)");
         }
@@ -201,7 +201,7 @@ public sealed class InstallPipeline(
 
         if (cfg.Hooks.SessionStatusLine)
             changed |= ClaudeSurgeon.EnsureSessionStatusHook(settings,
-                Path.Combine(cfg.InstallRoot, "token-stack.exe"));
+                Path.Combine(cfg.InstallRoot, Branding.ExeName));
         else
             changed |= ClaudeSurgeon.RemoveSessionStatusHook(settings);
 
@@ -226,7 +226,7 @@ public sealed class InstallPipeline(
     private void CopySelfToRoot(StackConfig cfg)
     {
         var self = Environment.ProcessPath;
-        var target = Path.Combine(cfg.InstallRoot, "token-stack.exe");
+        var target = Path.Combine(cfg.InstallRoot, Branding.ExeName);
         if (self is null) { log("      WARN: cannot resolve own path — hook may point at a missing exe"); return; }
         if (string.Equals(Path.GetFullPath(self), Path.GetFullPath(target), StringComparison.OrdinalIgnoreCase))
             return; // already running from installRoot
@@ -234,6 +234,11 @@ public sealed class InstallPipeline(
         {
             File.Copy(self, target, overwrite: true);
             log($"      copied self to {target}");
+            // Upgrade from a v1.0.x install: drop the old-named exe (the hook/shortcuts were
+            // already rewritten to the new name). Harmless orphan if it's locked.
+            var legacy = Path.Combine(cfg.InstallRoot, Branding.LegacyExeName);
+            if (File.Exists(legacy) && !string.Equals(legacy, target, StringComparison.OrdinalIgnoreCase))
+                try { File.Delete(legacy); } catch { /* locked = leave it */ }
         }
         catch (IOException) // target locked (e.g. a hook is running it right now)
         {

@@ -79,15 +79,31 @@ public class ClaudeSurgeonTests
     public void EnsureSessionStatusHook_ReplacesBothLegacyEntries_WithSingleExeCall()
     {
         var root = Parse(RealisticSettings);
-        var changed = ClaudeSurgeon.EnsureSessionStatusHook(root, @"C:\ts\token-stack.exe");
+        var changed = ClaudeSurgeon.EnsureSessionStatusHook(root, @"C:\ts\token-saver.exe");
         Assert.True(changed);
         var ss = root["hooks"]!["SessionStart"]!.AsArray();
         Assert.Single(ss);
         var entry = ss[0]!;
         Assert.Equal("startup|resume", entry["matcher"]!.GetValue<string>());
         var hook = entry["hooks"]![0]!;
-        Assert.Equal("\"C:\\ts\\token-stack.exe\" status --hook", hook["command"]!.GetValue<string>());
+        Assert.Equal("\"C:\\ts\\token-saver.exe\" status --hook", hook["command"]!.GetValue<string>());
         Assert.Equal(30, hook["timeout"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public void EnsureSessionStatusHook_MigratesLegacyExeName()
+    {
+        var root = Parse("""
+        { "hooks": { "SessionStart": [
+          { "matcher": "startup|resume", "hooks": [
+            { "type": "command", "command": "\"C:\\token-stack\\token-stack.exe\" status --hook" } ] } ] } }
+        """);
+        var changed = ClaudeSurgeon.EnsureSessionStatusHook(root, @"C:\token-stack\token-saver.exe");
+        Assert.True(changed);
+        var ss = root["hooks"]!["SessionStart"]!.AsArray();
+        Assert.Single(ss); // old replaced, not duplicated
+        Assert.Equal("\"C:\\token-stack\\token-saver.exe\" status --hook",
+            ss[0]!["hooks"]![0]!["command"]!.GetValue<string>());
     }
 
     [Fact]
@@ -98,7 +114,7 @@ public class ClaudeSurgeonTests
             { "matcher": "startup", "hooks": [ { "type": "command", "command": "my-own-tool.exe" } ] }
         ] } }
         """);
-        ClaudeSurgeon.EnsureSessionStatusHook(root, @"C:\ts\token-stack.exe");
+        ClaudeSurgeon.EnsureSessionStatusHook(root, @"C:\ts\token-saver.exe");
         var ss = root["hooks"]!["SessionStart"]!.AsArray();
         Assert.Equal(2, ss.Count); // foreign + ours
         Assert.Equal("my-own-tool.exe", ss[0]!["hooks"]![0]!["command"]!.GetValue<string>());
@@ -108,7 +124,7 @@ public class ClaudeSurgeonTests
     public void RemoveSessionStatusHook_Idempotent()
     {
         var root = Parse(RealisticSettings);
-        ClaudeSurgeon.EnsureSessionStatusHook(root, @"C:\ts\token-stack.exe");
+        ClaudeSurgeon.EnsureSessionStatusHook(root, @"C:\ts\token-saver.exe");
         Assert.True(ClaudeSurgeon.RemoveSessionStatusHook(root));
         Assert.False(ClaudeSurgeon.RemoveSessionStatusHook(root));
         Assert.Empty(root["hooks"]!["SessionStart"]!.AsArray());

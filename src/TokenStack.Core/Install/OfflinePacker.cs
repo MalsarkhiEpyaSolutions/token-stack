@@ -73,7 +73,7 @@ public static class OfflinePacker
         log("  + token-stack.exe");
         var self = Environment.ProcessPath
             ?? throw new InvalidOperationException("cannot resolve the running token-stack.exe path");
-        File.Copy(self, Path.Combine(staging, "token-stack.exe"), overwrite: true);
+        File.Copy(self, Path.Combine(staging, Branding.ExeName), overwrite: true);
 
         log($"  zipping → {outZip}");
         if (File.Exists(outZip)) File.Delete(outZip);
