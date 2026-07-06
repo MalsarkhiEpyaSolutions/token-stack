@@ -7,7 +7,11 @@ savings: ~74-95% depending on workload.
 
 ## Quick start — online (any Windows 10/11 machine, no admin)
 
-1. Unzip anywhere, open a terminal next to `token-stack.exe`.
+1. Download the latest `token-stack-v*.zip` from
+   [Releases](https://github.com/MalsarkhiEpyaSolutions/token-stack/releases),
+   unzip anywhere, open a terminal next to `token-stack.exe`.
+   *The exe is not code-signed, so SmartScreen may warn on first run — click
+   "More info" → "Run anyway" (or `Unblock-File .\token-stack.exe`).*
 2. `.\token-stack.exe install`   (downloads pinned components; Headroom cold-loads 25-105s)
 3. Fully quit Claude (Desktop: tray icon → Quit) and relaunch.
 4. Every session now starts with:
