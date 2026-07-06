@@ -6,6 +6,49 @@ namespace TokenStack.Tests;
 
 public class PipelineTests
 {
+    private static InstallPipeline PipeWith(string settings, string claudeJson, out FakeEnv env)
+    {
+        env = new FakeEnv();
+        return new InstallPipeline(new FakeRunner(), env, new FakePort(), new FakeHttp(), _ => { })
+        {
+            SettingsPath = settings,
+            ClaudeJsonPath = claudeJson,
+        };
+    }
+
+    private static string SeedSettings(string json)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "ts-det", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var settings = Path.Combine(dir, "settings.json");
+        File.WriteAllText(settings, json);
+        return settings;
+    }
+
+    [Fact]
+    public void DetectUpstream_AdoptsVendorBaseUrlFromSettings()
+    {
+        var settings = SeedSettings("""{"env":{"ANTHROPIC_BASE_URL":"https://api.moonshot.ai/anthropic"}}""");
+        var pipe = PipeWith(settings, settings + ".claude.json", out _);
+        var cfg = StackConfig.CreateDefault(@"C:\ts");
+
+        pipe.DetectUpstream(cfg);
+
+        Assert.Equal("https://api.moonshot.ai/anthropic", cfg.Headroom.UpstreamUrl);
+    }
+
+    [Fact]
+    public void DetectUpstream_PlainAnthropic_LeavesEmpty()
+    {
+        var settings = SeedSettings("""{"env":{"ANTHROPIC_BASE_URL":"https://api.anthropic.com"}}""");
+        var pipe = PipeWith(settings, settings + ".claude.json", out _);
+        var cfg = StackConfig.CreateDefault(@"C:\ts");
+
+        pipe.DetectUpstream(cfg);
+
+        Assert.Equal("", cfg.Headroom.UpstreamUrl);
+    }
+
     [Fact]
     public void PlanSteps_FollowSpecOrder_AndHonorEnabledFlags()
     {

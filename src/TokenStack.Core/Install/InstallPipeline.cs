@@ -102,6 +102,14 @@ public sealed class InstallPipeline(
             : "[2/8] bootstrap: uv");
         var uv = src.IsOffline ? src.Uv : new Bootstrap(runner).EnsureUv();
 
+        if (cfg.Headroom.Enabled)
+        {
+            DetectUpstream(cfg);
+            if (!string.IsNullOrEmpty(cfg.Headroom.UpstreamUrl))
+                log($"      adopting upstream: {Providers.Label(cfg.Headroom.UpstreamUrl)} " +
+                    $"({cfg.Headroom.UpstreamUrl})");
+        }
+
         var headroom = new HeadroomComponent(runner, port, http);
         if (cfg.Headroom.Enabled)
         {
@@ -156,6 +164,25 @@ public sealed class InstallPipeline(
 
         log("DONE. Fully quit Claude Desktop from the system tray and relaunch " +
             "(env inheritance happens at process creation).");
+    }
+
+    /// <summary>Reads the user's CURRENT Claude Code base URL (settings.json env, then the
+    /// User-scope env var) and adopts a vendor/custom upstream BEFORE routing rewrites the
+    /// base URL to the local proxy. Idempotent: a base URL already pointing at our proxy
+    /// preserves the previously-adopted upstream.</summary>
+    public void DetectUpstream(StackConfig cfg)
+    {
+        string? current = null;
+        try
+        {
+            var settings = new ClaudeFileEditor(SettingsPath).Load();
+            current = settings["env"]?["ANTHROPIC_BASE_URL"]?.GetValue<string>();
+        }
+        catch { /* missing/corrupt settings = nothing to adopt */ }
+        current ??= env.GetUser("ANTHROPIC_BASE_URL");
+
+        cfg.Headroom.UpstreamUrl = ProviderDetection.ResolveUpstream(
+            current, cfg.Headroom.UpstreamUrl, RoutingManager.ProxyUrl(cfg.Headroom.Port));
     }
 
     /// <summary>All Claude-file edits in one editor session per file = one backup per run.
