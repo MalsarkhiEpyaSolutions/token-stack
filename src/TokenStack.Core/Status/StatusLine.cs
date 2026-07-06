@@ -13,11 +13,12 @@ public static class StatusLine
         else
         {
             var route = s.Routed ? "ROUTED" : "BYPASSED";
+            if (s.Routed && s.ProviderLabel != "Anthropic") route += "→" + s.ProviderLabel;
             var reqs = s.Reqs is { } n ? $", reqs={n}" : "";
             headroom = $"up (:{s.Port}, {route}{reqs})";
         }
         var rtk = !s.RtkEnabled ? "OFF" : s.RtkOnPath ? "up" : "MISSING";
         var semble = !s.SembleEnabled ? "OFF" : s.SembleWired ? "up (MCP)" : "MISSING";
-        return $"[token-stack] Headroom: {headroom} | RTK: {rtk} | Semble: {semble}";
+        return $"[TokenSaver] Headroom: {headroom} | RTK: {rtk} | Semble: {semble}";
     }
 }

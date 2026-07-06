@@ -14,8 +14,21 @@ public class StatusLineTests
     public void AllUp_Routed_WithReqs()
     {
         Assert.Equal(
-            "[token-stack] Headroom: up (:8787, ROUTED, reqs=42) | RTK: up | Semble: up (MCP)",
+            "[TokenSaver] Headroom: up (:8787, ROUTED, reqs=42) | RTK: up | Semble: up (MCP)",
             StatusLine.Build(Healthy()));
+    }
+
+    [Fact]
+    public void DefaultAnthropic_HasNoProviderSuffix()
+    {
+        Assert.DoesNotContain("ROUTED→", StatusLine.Build(Healthy())); // ProviderLabel defaults to Anthropic
+    }
+
+    [Fact]
+    public void Vendor_AppendsProviderToRoute()
+    {
+        var s = Healthy() with { ProviderLabel = "Kimi" };
+        Assert.Contains("ROUTED→Kimi", StatusLine.Build(s));
     }
 
     [Fact]
@@ -30,7 +43,7 @@ public class StatusLineTests
     {
         var s = Healthy() with { Reqs = null };
         Assert.Equal(
-            "[token-stack] Headroom: up (:8787, ROUTED) | RTK: up | Semble: up (MCP)",
+            "[TokenSaver] Headroom: up (:8787, ROUTED) | RTK: up | Semble: up (MCP)",
             StatusLine.Build(s));
     }
 

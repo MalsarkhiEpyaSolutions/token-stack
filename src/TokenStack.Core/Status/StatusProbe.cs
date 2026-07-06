@@ -39,7 +39,8 @@ public sealed class StatusProbe(
             SembleWired: sembleWired,
             HeadroomEnabled: cfg.Headroom.Enabled,
             RtkEnabled: cfg.Rtk.Enabled,
-            SembleEnabled: cfg.Semble.Enabled);
+            SembleEnabled: cfg.Semble.Enabled,
+            ProviderLabel: Providers.Label(cfg.Headroom.UpstreamUrl));
     }
 
     /// <summary>Hook-mode side effects: start the task if down + zombie-recover, then report.</summary>

@@ -13,4 +13,5 @@ public sealed record StackStatus(
     bool SembleWired,
     bool HeadroomEnabled,
     bool RtkEnabled,
-    bool SembleEnabled);
+    bool SembleEnabled,
+    string ProviderLabel = "Anthropic");
