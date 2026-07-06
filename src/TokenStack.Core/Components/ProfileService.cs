@@ -38,6 +38,8 @@ public sealed class ProfileService(IProcessRunner runner)
         t.Start();
     }
 
+    public bool IsOn(ProfileConfig p) => Task(p).IsRunning();
+
     public void SetEnabled(ProfileConfig p, bool on)
     {
         var t = Task(p);

@@ -40,6 +40,19 @@ public sealed class ShortcutCreator(IProcessRunner runner)
         return ControlsFolder;
     }
 
+    /// <summary>One on/off toggle button for a model profile, in the controls folder.</summary>
+    public string CreateProfileToggle(string exePath, string profileName, string slug)
+    {
+        Directory.CreateDirectory(ControlsFolder);
+        var lnk = Path.Combine(ControlsFolder, $"{profileName} (toggle).lnk");
+        var ps = new StringBuilder("$w=New-Object -ComObject WScript.Shell;");
+        Append(ps, lnk, exePath, $"profile toggle {slug}");
+        var r = runner.Run("powershell", $"-NoProfile -ExecutionPolicy Bypass -Command \"{ps}\"", 30000);
+        if (!r.Ok)
+            throw new InvalidOperationException($"could not create profile toggle: {r.StdErr}{r.StdOut}");
+        return lnk;
+    }
+
     private static void Append(StringBuilder ps, string lnk, string exe, string args) =>
         ps.Append($"$s=$w.CreateShortcut('{lnk}');$s.TargetPath='{exe}';$s.Arguments='{args}';")
           .Append($"$s.IconLocation='{exe},0';$s.WindowStyle=7;$s.Description='token-stack toggle';$s.Save();");

@@ -9,6 +9,16 @@ app.Configure(c =>
         .WithDescription("Install + wire the full stack (idempotent)");
     c.AddCommand<LauncherCommand>("launcher")
         .WithDescription("Make a desktop launcher for a model (GLM/Kimi/MiniMax/OpenRouter/custom) — runs in parallel, doesn't touch your normal Claude");
+    c.AddBranch("profile", p =>
+    {
+        p.SetDescription("Per-model compression proxies: parallel + savings, each with an on/off button");
+        p.AddCommand<ProfileAddCommand>("add").WithDescription("Add a model (own proxy + launcher + on/off button)");
+        p.AddCommand<ProfileListCommand>("list").WithDescription("List models and their on/off state");
+        p.AddCommand<ProfileOnCommand>("on").WithDescription("Turn a model's proxy on");
+        p.AddCommand<ProfileOffCommand>("off").WithDescription("Turn a model's proxy off");
+        p.AddCommand<ProfileToggleCommand>("toggle").WithDescription("Flip a model's proxy on/off");
+        p.AddCommand<ProfileRemoveCommand>("remove").WithDescription("Remove a model (stops + unregisters its proxy)");
+    });
     c.AddCommand<StatusCommand>("status")
         .WithDescription("Live stack status (--hook = one-line session mode)");
     c.AddCommand<StartCommand>("start").WithDescription("Start the Headroom proxy task");
