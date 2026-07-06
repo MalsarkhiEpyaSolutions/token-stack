@@ -27,14 +27,18 @@ public static class LauncherWriter
             $"set \"ANTHROPIC_BASE_URL={baseUrl}\"\r\n" +
             $"set \"ANTHROPIC_AUTH_TOKEN={token}\"\r\n" +
             $"set \"ANTHROPIC_MODEL={model}\"\r\n" +
-            "claude %*\r\n";
+            // start a NEW window via cmd /k so it STAYS OPEN — a plain `claude` from a double-
+            // clicked .cmd tears the window down on exit. The new cmd inherits the env set above.
+            $"start \"Claude - {label}\" cmd /k claude %*\r\n";
     }
 
-    /// <summary>Writes "Claude - &lt;label&gt;.cmd" to the desktop; returns its full path.</summary>
-    public static string WriteToDesktop(string label, string baseUrl, string token, string model)
+    /// <summary>Writes "Claude - &lt;label&gt;.cmd" into the "Token Stack Controls" folder (one
+    /// tidy place, next to the toggle buttons); returns its full path.</summary>
+    public static string Write(string label, string baseUrl, string token, string model)
     {
-        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-        var path = Path.Combine(desktop, $"Claude - {label}.cmd");
+        var folder = Windows.ShortcutCreator.ControlsFolder;
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, $"Claude - {label}.cmd");
         File.WriteAllText(path, BuildCmd(label, baseUrl, token, model));
         return path;
     }

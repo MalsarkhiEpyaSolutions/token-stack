@@ -68,7 +68,7 @@ public sealed class ProfileAddCommand : Command
         new ProfileService(Services.Runner).Install(cfg, profile);
 
         var exe = Path.Combine(cfg.InstallRoot, Branding.ExeName);
-        var cmd = LauncherWriter.WriteToDesktop(label, ProfileWiring.ProxyUrl(port), key, model);
+        var cmd = LauncherWriter.Write(label, ProfileWiring.ProxyUrl(port), key, model);
         var toggle = new ShortcutCreator(Services.Runner).CreateProfileToggle(exe, label, ProfileWiring.Slug(label));
 
         AnsiConsole.MarkupLineInterpolated($"[green]Added {label}[/] → proxy :{port} → {upstream}");

@@ -44,7 +44,7 @@ public sealed class LauncherCommand : Command
         var key = AnsiConsole.Prompt(
             new TextPrompt<string>($"Paste the [bold]{label}[/] API key [grey](hidden)[/]:").Secret());
 
-        var path = LauncherWriter.WriteToDesktop(label, baseUrl, key, model);
+        var path = LauncherWriter.Write(label, baseUrl, key, model);
 
         AnsiConsole.MarkupLineInterpolated($"[green]Created[/] {path}");
         AnsiConsole.MarkupLineInterpolated(

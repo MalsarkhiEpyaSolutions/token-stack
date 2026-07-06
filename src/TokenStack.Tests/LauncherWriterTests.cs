@@ -15,8 +15,9 @@ public class LauncherWriterTests
         // isolated home so this window has no claude.ai session (real login untouched)
         Assert.Contains("home-MiniMax", cmd);
         Assert.Contains("set \"USERPROFILE=%TS_HOME%\"", cmd);
-        // claude must be launched AFTER the env is set.
-        Assert.True(cmd.IndexOf("claude %*", System.StringComparison.Ordinal)
+        // persistent window via cmd /k, launched AFTER the env is set.
+        Assert.Contains("start \"Claude - MiniMax\" cmd /k claude", cmd);
+        Assert.True(cmd.IndexOf("cmd /k claude", System.StringComparison.Ordinal)
                     > cmd.IndexOf("ANTHROPIC_MODEL", System.StringComparison.Ordinal));
     }
 }
