@@ -1,4 +1,5 @@
 using TokenStack.Core.Components;
+using TokenStack.Core.Config;
 using TokenStack.Core.Windows;
 using Xunit;
 
@@ -27,6 +28,33 @@ public class ProfilesTests
         var runner = new FakeRunner();
         new ScheduledTaskManager(runner, "TokenSaver-MiniMax").Exists();
         Assert.Contains(runner.Calls, c => c.Contains("/tn TokenSaver-MiniMax"));
+    }
+
+    [Fact]
+    public void ProfileService_SetEnabledOff_StopsAndDisablesItsTask()
+    {
+        var runner = new FakeRunner { Handler = (f, a) => a.Contains("/query") ? new(0, "", "") : new(0, "", "") };
+        new ProfileService(runner).SetEnabled(new ProfileConfig { Name = "MiniMax", Port = 8788 }, on: false);
+        Assert.Contains(runner.Calls, c => c.Contains("/end /tn TokenSaver-MiniMax"));
+        Assert.Contains(runner.Calls, c => c.Contains("/change /tn TokenSaver-MiniMax /disable"));
+    }
+
+    [Fact]
+    public void ProfileService_Install_WritesProfileLauncher_AndRegistersItsTask()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ts-prof", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var runner = new FakeRunner();
+        var cfg = StackConfig.CreateDefault(root);
+        var p = new ProfileConfig { Name = "MiniMax", Upstream = "https://api.minimax.io/anthropic", Model = "MiniMax-M2", Port = 8788 };
+
+        new ProfileService(runner).Install(cfg, p);
+
+        var script = Path.Combine(root, "run_proxy_MiniMax.py");
+        Assert.True(File.Exists(script));
+        Assert.Contains("ANTHROPIC_TARGET_API_URL", File.ReadAllText(script));
+        Assert.Contains("8788", File.ReadAllText(script));
+        Assert.Contains(runner.Calls, c => c.Contains("/create /tn TokenSaver-MiniMax"));
     }
 
     [Fact]
