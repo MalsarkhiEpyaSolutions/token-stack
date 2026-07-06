@@ -92,12 +92,17 @@ public static class ClaudeSurgeon
 
     // ---------- env.ANTHROPIC_BASE_URL ----------
 
-    public static bool SetEnvBaseUrl(JsonNode root, string url)
+    public static bool SetEnvBaseUrl(JsonNode root, string url) =>
+        SetEnvVar(root, "ANTHROPIC_BASE_URL", url);
+
+    /// <summary>Set (or update) one env var in the Claude settings.json `env` block, preserving
+    /// siblings. Returns true when it changed the tree.</summary>
+    public static bool SetEnvVar(JsonNode root, string name, string value)
     {
         var env = root["env"]?.AsObject();
         if (env is null) { env = new JsonObject(); root.AsObject()["env"] = env; }
-        if (env["ANTHROPIC_BASE_URL"]?.GetValue<string>() == url) return false;
-        env["ANTHROPIC_BASE_URL"] = url;
+        if (env[name]?.GetValue<string>() == value) return false;
+        env[name] = value;
         return true;
     }
 

@@ -32,6 +32,11 @@ API key and model are never touched — they pass straight through. The status l
 then reads `ROUTED→Kimi` (or GLM / MiniMax / OpenRouter). Plain Claude Code is
 unaffected.
 
+**Don't have the vendor set up yet?** Run `.\token-saver.exe setup` — an interactive
+screen that picks the provider, takes your API key (masked), and writes it into
+Claude's `settings.json` (your key lives there, never in TokenSaver). Then
+`.\token-saver.exe install` routes it through the proxy.
+
 ## Offline / air-gapped machines
 
 The same `install` works with **zero network** when an offline bundle is present — it
@@ -81,6 +86,7 @@ Each shows a popup confirming the new state.
 | Command | What |
 |---|---|
 | `install` | full install/repair (idempotent; `--component headroom\|rtk\|semble`; `--offline`/`--online`) |
+| `setup` | interactive: add a vendor API key (GLM/Kimi/MiniMax/OpenRouter) into Claude's settings |
 | `on` / `off` / `toggle` `[layer]` | pause/resume whole stack or one layer (no reinstall) |
 | `shortcut` | (re)create the desktop toggle button |
 | `pack` | build an offline bundle (run on an online machine) |

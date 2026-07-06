@@ -24,6 +24,18 @@ public static class Providers
             if (upstreamUrl.Contains(frag, StringComparison.OrdinalIgnoreCase)) return label;
         return "Custom";
     }
+
+    /// <summary>The vendors the interactive `setup` command offers: canonical endpoint +
+    /// a suggested model (editable at the prompt — vendor model IDs change over time).</summary>
+    public sealed record SetupChoice(string Label, string Endpoint, string DefaultModel);
+
+    public static readonly SetupChoice[] SetupChoices =
+    {
+        new("GLM", "https://api.z.ai/api/anthropic", "glm-4.6"),
+        new("Kimi", "https://api.moonshot.ai/anthropic", "kimi-k2-0905-preview"),
+        new("MiniMax", "https://api.minimax.io/anthropic", "MiniMax-M2"),
+        new("OpenRouter", "https://openrouter.ai/api", "anthropic/claude-sonnet-4.5"),
+    };
 }
 
 /// <summary>Decides the proxy upstream from the user's CURRENT Claude Code base URL.</summary>

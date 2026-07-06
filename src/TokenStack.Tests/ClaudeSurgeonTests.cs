@@ -142,6 +142,17 @@ public class ClaudeSurgeonTests
     }
 
     [Fact]
+    public void SetEnvVar_AddsUpdatesAndNoOps()
+    {
+        var root = Parse("""{ "theme": "dark" }""");
+        Assert.True(ClaudeSurgeon.SetEnvVar(root, "ANTHROPIC_AUTH_TOKEN", "sk-1")); // added
+        Assert.Equal("sk-1", root["env"]!["ANTHROPIC_AUTH_TOKEN"]!.GetValue<string>());
+        Assert.True(ClaudeSurgeon.SetEnvVar(root, "ANTHROPIC_AUTH_TOKEN", "sk-2"));  // updated
+        Assert.False(ClaudeSurgeon.SetEnvVar(root, "ANTHROPIC_AUTH_TOKEN", "sk-2")); // no-op
+        Assert.Equal("dark", root["theme"]!.GetValue<string>());                    // sibling preserved
+    }
+
+    [Fact]
     public void RemoveEnvBaseUrl_DropsEmptyEnvObject()
     {
         var root = Parse("""{ "env": { "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787" } }""");

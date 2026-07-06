@@ -19,6 +19,15 @@ public class ProvidersTests
         Assert.Equal(expected, Providers.Label(url));
 
     [Fact]
+    public void SetupChoices_EndpointsMapBackToTheirLabel()
+    {
+        // Guards the two tables against drift: every setup endpoint must classify to its own label.
+        foreach (var c in Providers.SetupChoices)
+            Assert.Equal(c.Label, Providers.Label(c.Endpoint));
+        Assert.Contains(Providers.SetupChoices, c => c.Label == "OpenRouter");
+    }
+
+    [Fact]
     public void ResolveUpstream_VendorBaseUrl_IsAdopted() =>
         Assert.Equal("https://api.moonshot.ai/anthropic",
             ProviderDetection.ResolveUpstream("https://api.moonshot.ai/anthropic", "", "http://127.0.0.1:8787"));
