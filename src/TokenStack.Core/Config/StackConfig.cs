@@ -24,6 +24,7 @@ public sealed class HeadroomConfig
     [JsonPropertyName("version")] public string Version { get; set; } = "0.30.0";
     [JsonPropertyName("pythonVersion")] public string PythonVersion { get; set; } = "3.12";
     [JsonPropertyName("extraArgs")] public List<string> ExtraArgs { get; set; } = new();
+    [JsonPropertyName("upstreamUrl")] public string UpstreamUrl { get; set; } = "";
 }
 
 public sealed class RtkConfig

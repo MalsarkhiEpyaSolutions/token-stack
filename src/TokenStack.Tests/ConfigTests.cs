@@ -9,6 +9,16 @@ public class ConfigTests
         Path.Combine(Path.GetTempPath(), "ts-tests", Guid.NewGuid().ToString("N"), "config.json");
 
     [Fact]
+    public void Load_OldConfigWithoutUpstreamUrl_DefaultsToEmpty()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "ts-cfg", Guid.NewGuid().ToString("N") + ".json");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, """{"schemaVersion":1,"installRoot":"C:\\ts","headroom":{"enabled":true,"port":8787,"mode":"token","version":"0.30.0","pythonVersion":"3.12","extraArgs":[]}}""");
+        var c = ConfigStore.Load(path);
+        Assert.Equal("", c.Headroom.UpstreamUrl);
+    }
+
+    [Fact]
     public void CreateDefault_HasSpecDefaults()
     {
         var c = StackConfig.CreateDefault(@"C:\Users\x\AppData\Local\token-stack");
@@ -18,6 +28,7 @@ public class ConfigTests
         Assert.Equal("token", c.Headroom.Mode);
         Assert.Equal("0.30.0", c.Headroom.Version);
         Assert.Equal("3.12", c.Headroom.PythonVersion);
+        Assert.Equal("", c.Headroom.UpstreamUrl); // default = Anthropic (today's behavior)
         Assert.Equal("0.42.3", c.Rtk.Version);
         Assert.Equal("github:rtk-ai/rtk", c.Rtk.Source);
         Assert.Equal("Bash", c.Rtk.HookMatcher);
