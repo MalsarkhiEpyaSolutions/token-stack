@@ -40,6 +40,7 @@ public class ToggleServiceTests
         Assert.False(state.Headroom);
         Assert.False(env.User.ContainsKey("ANTHROPIC_BASE_URL"));   // desktop routing removed
         Assert.Contains(runner.Calls, c => c.Contains("/end"));      // proxy task stopped
+        Assert.Contains(runner.Calls, c => c.Contains("/disable")); // and won't relaunch at next logon
         Assert.DoesNotContain("ANTHROPIC_BASE_URL", File.ReadAllText(sp)); // settings.json routing removed
     }
 
@@ -76,12 +77,14 @@ public class ToggleServiceTests
     public void ApplyWiring_AllOn_WiresEverything()
     {
         var env = new FakeEnv();
+        var runner = TaskRunningRunner();
         var (sp, cj) = TempFiles("{}", "{}");
         var cfg = StackConfig.CreateDefault(@"C:\ts"); // all enabled
 
-        var st = new ToggleService(TaskRunningRunner(), env, sp, cj).ApplyWiring(cfg);
+        var st = new ToggleService(runner, env, sp, cj).ApplyWiring(cfg);
 
         Assert.True(st is { Headroom: true, Rtk: true, Semble: true });
+        Assert.Contains(runner.Calls, c => c.Contains("/enable")); // re-armed after a prior off
         Assert.Equal("http://127.0.0.1:8787", env.User["ANTHROPIC_BASE_URL"]);
         Assert.Contains("rtk.exe", File.ReadAllText(sp));
         Assert.Contains("semble", File.ReadAllText(cj));

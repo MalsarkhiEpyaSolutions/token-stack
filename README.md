@@ -52,8 +52,9 @@ The whole stack — or any single layer — pauses and resumes instantly (no rei
 ```
 
 **OFF is safe:** it removes the routing too, so Claude keeps working directly against
-`api.anthropic.com` — it doesn't just kill the proxy and strand you. Restart Claude after
-toggling for it to take effect.
+`api.anthropic.com` — it doesn't just kill the proxy and strand you. OFF also disables
+the proxy's logon autostart, so it stays off across reboots; ON re-enables it. Restart
+Claude after toggling for it to take effect.
 
 **The buttons:** `install` drops these on your Desktop (re-create anytime with
 `.\token-stack.exe shortcut`):

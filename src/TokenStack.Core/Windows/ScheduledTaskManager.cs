@@ -26,6 +26,8 @@ public sealed class ScheduledTaskManager(IProcessRunner runner)
 
     public void Start() => runner.Run("schtasks", $"/run /tn {TaskName}");
     public void Stop() => runner.Run("schtasks", $"/end /tn {TaskName}");
+    public void Enable() => runner.Run("schtasks", $"/change /tn {TaskName} /enable");
+    public void Disable() => runner.Run("schtasks", $"/change /tn {TaskName} /disable");
     public void Unregister() => runner.Run("schtasks", $"/delete /tn {TaskName} /f");
 
     /// <summary>Kill any pythonw still running a proxy launcher — covers zombies AND the

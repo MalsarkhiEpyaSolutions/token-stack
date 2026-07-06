@@ -16,12 +16,13 @@ public sealed class ToggleService(
 {
     public LayerState ApplyWiring(StackConfig cfg)
     {
-        // 1. Proxy task: start when on, stop when off (only if it's registered).
+        // 1. Proxy task: on = enable + start; off = stop + disable, so the logon
+        //    trigger can't relaunch the proxy after a reboot (only if it's registered).
         var tasks = new ScheduledTaskManager(runner);
         if (tasks.Exists())
         {
-            if (cfg.Headroom.Enabled) tasks.Start();
-            else tasks.Stop();
+            if (cfg.Headroom.Enabled) { tasks.Enable(); tasks.Start(); }
+            else { tasks.Stop(); tasks.Disable(); }
         }
 
         // 2. Desktop routing (User env var) — present only when Headroom is on.
