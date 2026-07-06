@@ -16,7 +16,7 @@ public class ConfigTests
         Assert.True(c.Headroom.Enabled);
         Assert.Equal(8787, c.Headroom.Port);
         Assert.Equal("token", c.Headroom.Mode);
-        Assert.Equal("0.24.0", c.Headroom.Version);
+        Assert.Equal("0.30.0", c.Headroom.Version);
         Assert.Equal("3.12", c.Headroom.PythonVersion);
         Assert.Equal("0.42.3", c.Rtk.Version);
         Assert.Equal("github:rtk-ai/rtk", c.Rtk.Source);

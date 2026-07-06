@@ -56,7 +56,9 @@ public sealed class HeadroomComponent(IProcessRunner runner, IPortProbe port, IH
         return new List<string>
         {
             $"{uvPath} venv --clear --python {cfg.Headroom.PythonVersion} {Q(venv)}",
-            $"{uvPath} pip install --python {Q(venvPython)} headroom-ai[proxy]=={cfg.Headroom.Version}",
+            // --no-build: never compile from an sdist on the user's machine (needs Rust+MSVC —
+            // seen failing live). If the pinned version has no wheel, fail fast with a clear error.
+            $"{uvPath} pip install --python {Q(venvPython)} --no-build headroom-ai[proxy]=={cfg.Headroom.Version}",
         };
     }
 

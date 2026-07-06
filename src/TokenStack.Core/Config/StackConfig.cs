@@ -21,7 +21,7 @@ public sealed class HeadroomConfig
     [JsonPropertyName("enabled")] public bool Enabled { get; set; } = true;
     [JsonPropertyName("port")] public int Port { get; set; } = 8787;
     [JsonPropertyName("mode")] public string Mode { get; set; } = "token";
-    [JsonPropertyName("version")] public string Version { get; set; } = "0.24.0";
+    [JsonPropertyName("version")] public string Version { get; set; } = "0.30.0";
     [JsonPropertyName("pythonVersion")] public string PythonVersion { get; set; } = "3.12";
     [JsonPropertyName("extraArgs")] public List<string> ExtraArgs { get; set; } = new();
 }

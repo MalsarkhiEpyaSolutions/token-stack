@@ -31,9 +31,9 @@ HuggingFace models exist locally):
 .\token-stack.exe pack --out token-stack-offline-v1.0.0.zip   # ~550 MB
 ```
 The bundle contains `uv.exe` + a portable Python + a pip **wheelhouse** (wheels are *built*
-on the online machine via `pip wheel`, so the air-gapped install is pure-wheel — headroom-ai
-ships sdist-only past 0.20.15 and can't be built offline) + `rtk.exe` + the HuggingFace model
-cache Headroom needs at runtime.
+on the online machine via `pip wheel`, so the air-gapped install is pure-wheel — some
+headroom-ai versions ship sdist-only and can't be built offline) + `rtk.exe` + the
+HuggingFace model cache Headroom needs at runtime.
 
 **On the air-gapped machine:** copy the zip → unzip → `.\token-stack.exe install`. It detects
 `vendor\`, installs everything from the bundle, and pins HuggingFace to offline mode

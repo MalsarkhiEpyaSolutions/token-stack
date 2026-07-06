@@ -57,7 +57,7 @@ public class HeadroomTests
 
         Assert.Contains(cmds, c => c == @"uv venv --clear --python 3.12 C:\ts\venv");
         Assert.Contains(cmds, c =>
-            c == @"uv pip install --python C:\ts\venv\Scripts\python.exe headroom-ai[proxy]==0.24.0");
+            c == @"uv pip install --python C:\ts\venv\Scripts\python.exe --no-build headroom-ai[proxy]==0.30.0");
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class HeadroomTests
 
         Assert.Contains(cmds, c => c == @"C:\dl\vendor\uv.exe venv --clear --python C:\dl\vendor\python C:\ts\venv");
         Assert.Contains(cmds, c => c ==
-            @"C:\dl\vendor\uv.exe pip install --python C:\ts\venv\Scripts\python.exe --offline --no-index --find-links C:\dl\vendor\wheelhouse headroom-ai[proxy]==0.24.0");
+            @"C:\dl\vendor\uv.exe pip install --python C:\ts\venv\Scripts\python.exe --offline --no-index --find-links C:\dl\vendor\wheelhouse headroom-ai[proxy]==0.30.0");
     }
 
     [Fact]
