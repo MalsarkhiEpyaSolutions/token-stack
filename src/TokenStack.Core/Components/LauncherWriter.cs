@@ -7,11 +7,14 @@ public static class LauncherWriter
 {
     // ponytail: key is stored in the .cmd in plain text; fine for a local launcher. A key with
     // a literal `%`/`&`/`^` would need cmd-escaping — none of the vendor keys use those.
+    // ANTHROPIC_API_KEY (not AUTH_TOKEN): a cached Anthropic OAuth login otherwise overrides
+    // AUTH_TOKEN, so Claude sends the wrong bearer to the vendor → 401. API_KEY forces key-auth
+    // (x-api-key) and wins over the login; Anthropic-compatible vendors accept x-api-key.
     public static string BuildCmd(string baseUrl, string token, string model) =>
         "@echo off\r\n" +
         "rem TokenSaver launcher - Claude Code on one backend, this window only.\r\n" +
         $"set \"ANTHROPIC_BASE_URL={baseUrl}\"\r\n" +
-        $"set \"ANTHROPIC_AUTH_TOKEN={token}\"\r\n" +
+        $"set \"ANTHROPIC_API_KEY={token}\"\r\n" +
         $"set \"ANTHROPIC_MODEL={model}\"\r\n" +
         "claude %*\r\n";
 
