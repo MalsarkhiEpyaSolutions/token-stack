@@ -29,7 +29,7 @@ public sealed class PackCommand : Command<PackCommand.Settings>
                 m => AnsiConsole.MarkupLineInterpolated($"[grey]{m}[/]"));
             AnsiConsole.MarkupLineInterpolated($"[green]Offline bundle ready:[/] {outZip}");
             AnsiConsole.MarkupLine(
-                "Hand it to an air-gapped machine → unzip → [bold]token-stack.exe install[/] " +
+                "Hand it to an air-gapped machine → unzip → [bold]token-saver.exe install[/] " +
                 "(auto-detects the vendor\\ bundle and installs with zero network).");
             return 0;
         }
