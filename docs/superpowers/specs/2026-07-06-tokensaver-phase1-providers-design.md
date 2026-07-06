@@ -46,8 +46,10 @@ behavior.
   vendor key stays in the user's Claude Code config and passes through the proxy
   in the request's `Authorization` header.
 - Gemini-format compression (proprietary Google format — Phase 2+, low ROI).
-- Renaming install paths / the on-disk exe filename (deferred to a future major
-  version with a migration step).
+- Renaming the install **directory** `C:\token-stack` and config dir (deferred
+  to a future major version — a dir rename would force whole-directory
+  migration). Note: the on-disk **exe filename** IS renamed this phase (see
+  Rebrand); only the directory names stay.
 
 ## Architecture
 
@@ -135,12 +137,25 @@ Changes (visible surfaces):
 - README / release titles / notes → TokenSaver.
 - Status-line label `[token-stack]` → `[TokenSaver]` (display-only string; the
   SessionStart hook output is not parsed by anything).
+- **On-disk exe filename `token-stack.exe` → `token-saver.exe`** (distributed
+  zip, self-copy target, hook command, shortcuts, offline staging, `publish.ps1`
+  output). Centralize the name in one constant instead of the ~10 scattered
+  string literals.
+
+**Migration for existing installs (must be seamless — the #1 constraint):**
+- The SessionStart hook migrates automatically: `IsOurSessionEntry` already
+  recognizes a command containing `token-stack.exe`, so on re-install/upgrade
+  the old hook is matched and **replaced** by the `token-saver.exe` command.
+  `token-stack.exe` MUST stay in the recognized markers as a **legacy marker**.
+- The RTK hook is unaffected (it points at `rtk.exe`).
+- Install recreates desktop shortcuts pointing at the new exe and removes the
+  old-named ones (no orphaned/duplicate shortcuts).
+- The old `installRoot\token-stack.exe` is deleted after the new exe is copied
+  in (best-effort; skip if locked).
+- A user who never upgrades is untouched.
 
 Unchanged (to guarantee zero breakage):
-- Install root `C:\token-stack`, config dir `%LOCALAPPDATA%\token-stack`.
-- On-disk exe filename `token-stack.exe` (the SessionStart hook and desktop
-  shortcuts point at `installRoot\token-stack.exe`; keeping the name means old
-  installs keep working with no migration).
+- Install **directory** `C:\token-stack`, config dir `%LOCALAPPDATA%\token-stack`.
 - Internal namespaces `TokenStack.*` (not user-visible).
 
 Version: **v1.1.0** (backward-compatible feature bump). Release title
@@ -161,7 +176,13 @@ New unit tests (all with the existing `FakeRunner`/`FakeEnv`, no new frameworks)
   routing rewrites base URL to proxy; with `api.anthropic.com`/absent → no
   change; with the local proxy already set → existing `upstreamUrl` preserved
   (idempotent re-install).
-- Full existing suite (115) stays green.
+- **Hook migration:** a SessionStart hook whose command references the legacy
+  `token-stack.exe` is recognized and replaced by the `token-saver.exe` command
+  (assert `IsOurSessionEntry` still matches the legacy marker; extend
+  `ClaudeSurgeonTests` which currently hard-code `token-stack.exe`).
+- Full existing suite (115) stays green (update the tests that assert the old
+  exe name to the new one, keeping one that proves the legacy marker still
+  migrates).
 
 Manual verification (Windows sandbox, per the existing test checklist): a Claude
 Code + Kimi setup → `install` → status shows `ROUTED→Kimi`; a plain Claude Code
@@ -177,8 +198,14 @@ setup → unchanged behavior.
 - `Install/InstallPipeline.cs` — detection/adoption step (before routing).
 - `Status/StatusLine.cs` (+ `StatusProbe`/`StackStatus` as needed) — provider
   suffix in the one-liner.
+- **Exe rename:** a single `ExeName` constant consumed by `InstallPipeline`
+  (self-copy target + shortcut/hook paths, ~3 sites), `OfflinePacker`,
+  `ToggleCommands`, and `ClaudeSurgeon` (add `token-saver.exe` marker, keep
+  `token-stack.exe` legacy); delete old exe after copy.
+- `publish.ps1` — output `token-saver.exe`; `PackCommand` help text.
 - `README.md` — rebrand + a short "GLM/Kimi/MiniMax" section.
-- Tests: `HeadroomTests`, `ConfigTests`, a new `ProvidersTests` / detection test.
+- Tests: `HeadroomTests`, `ConfigTests`, `ClaudeSurgeonTests` (exe name +
+  legacy-migration), a new `ProvidersTests` / detection test.
 
 ## Rollout
 
