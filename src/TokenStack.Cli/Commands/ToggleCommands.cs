@@ -36,7 +36,7 @@ internal static class ToggleRunner
         ConfigStore.Save(cfg, path);
 
         string On(bool b) => b ? "[green]ON[/]" : "[red]OFF[/]";
-        AnsiConsole.MarkupLine($"Headroom: {On(state.Headroom)}  RTK: {On(state.Rtk)}  Semble: {On(state.Semble)}");
+        AnsiConsole.MarkupLine($"Headroom: {On(state.Headroom)}  RTK: {On(state.Rtk)}  Semble: {On(state.Semble)}  CCO: {On(state.Cco)}");
         AnsiConsole.MarkupLine("[yellow]Restart Claude for the change to take effect[/] " +
             "(Desktop: tray → Quit → relaunch).");
         if (notify) ShowNotification(state);
@@ -48,9 +48,9 @@ internal static class ToggleRunner
     private static void ShowNotification(LayerState s)
     {
         string Onoff(bool b) => b ? "ON" : "OFF";
-        var msg = $"Headroom: {Onoff(s.Headroom)}  |  RTK: {Onoff(s.Rtk)}  |  Semble: {Onoff(s.Semble)}" +
+        var msg = $"Headroom: {Onoff(s.Headroom)}  |  RTK: {Onoff(s.Rtk)}  |  Semble: {Onoff(s.Semble)}  |  CCO: {Onoff(s.Cco)}" +
                   "      (restart Claude to apply)";
-        var anyOn = s.Headroom || s.Rtk || s.Semble;
+        var anyOn = s.Headroom || s.Rtk || s.Semble || s.Cco;
         var title = anyOn ? "Token Stack" : "Token Stack - OFF";
         var ps = "Add-Type -AssemblyName PresentationFramework;" +
                  $"[System.Windows.MessageBox]::Show('{msg}','{title}')|Out-Null";

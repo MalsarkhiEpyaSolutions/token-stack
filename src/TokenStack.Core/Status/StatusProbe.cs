@@ -40,7 +40,9 @@ public sealed class StatusProbe(
             HeadroomEnabled: cfg.Headroom.Enabled,
             RtkEnabled: cfg.Rtk.Enabled,
             SembleEnabled: cfg.Semble.Enabled,
-            ProviderLabel: Providers.Label(cfg.Headroom.UpstreamUrl));
+            ProviderLabel: Providers.Label(cfg.Headroom.UpstreamUrl),
+            CcoEnabled: cfg.Cco.Enabled,
+            CcoWired: cfg.Cco.Enabled && File.Exists(Path.Combine(cfg.InstallRoot, "cco", "src", "read-cache.js")));
     }
 
     /// <summary>Hook-mode side effects: start the task if down + zombie-recover, then report.</summary>

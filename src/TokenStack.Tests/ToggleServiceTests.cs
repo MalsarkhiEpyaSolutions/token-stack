@@ -89,4 +89,36 @@ public class ToggleServiceTests
         Assert.Contains("rtk.exe", File.ReadAllText(sp));
         Assert.Contains("semble", File.ReadAllText(cj));
     }
+
+    [Fact]
+    public void ApplyWiring_CcoOn_AddsReadCacheHook()
+    {
+        var (sp, cj) = TempFiles("{}", "{}");
+        var cfg = StackConfig.CreateDefault(@"C:\ts"); // cco enabled by default
+
+        var st = new ToggleService(new FakeRunner(), new FakeEnv(), sp, cj).ApplyWiring(cfg);
+
+        Assert.True(st.Cco);
+        var s = File.ReadAllText(sp);
+        Assert.Contains("read-cache.js", s);
+        Assert.Contains("\"node ", s);       // command value begins with a bare `node …`
+        Assert.DoesNotContain("test -f", s); // not the POSIX-wrapped hooks.json form
+    }
+
+    [Fact]
+    public void ApplyWiring_CcoOff_RemovesReadCacheHook_LeavesRtk()
+    {
+        var (sp, cj) = TempFiles(
+            """{ "hooks": { "PreToolUse": [ { "matcher":"Read","hooks":[{"type":"command","command":"node \"C:\\ts\\cco\\src\\read-cache.js\""}] }, { "matcher":"Bash","hooks":[{"type":"command","command":"\"C:\\ts\\rtk\\rtk.exe\" hook claude"}] } ] } }""",
+            "{}");
+        var cfg = StackConfig.CreateDefault(@"C:\ts");
+        cfg.Cco.Enabled = false;
+
+        var st = new ToggleService(new FakeRunner(), new FakeEnv(), sp, cj).ApplyWiring(cfg);
+
+        Assert.False(st.Cco);
+        var s = File.ReadAllText(sp);
+        Assert.DoesNotContain("read-cache.js", s);
+        Assert.Contains("rtk.exe", s); // RTK survived
+    }
 }

@@ -56,7 +56,7 @@ public class PipelineTests
         var all = InstallPipeline.PlanSteps(cfg).Select(s => s.Name).ToArray();
         Assert.Equal(new[]
         {
-            "preflight", "bootstrap-uv", "headroom", "rtk", "semble", "routing", "hooks", "save-config",
+            "preflight", "bootstrap-uv", "headroom", "rtk", "semble", "cco", "routing", "hooks", "save-config",
         }, all);
 
         cfg.Rtk.Enabled = false;
@@ -84,5 +84,16 @@ public class PipelineTests
         var cfg = StackConfig.CreateDefault(root);
         try { InstallPipeline.Preflight(cfg); /* must not throw */ }
         finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public void PlanSteps_IncludesCco_WhenEnabled_AndOmits_WhenDisabled()
+    {
+        var on = StackConfig.CreateDefault(@"C:\ts");
+        Assert.Contains(InstallPipeline.PlanSteps(on), s => s.Name == "cco");
+
+        var off = StackConfig.CreateDefault(@"C:\ts");
+        off.Cco.Enabled = false;
+        Assert.DoesNotContain(InstallPipeline.PlanSteps(off), s => s.Name == "cco");
     }
 }

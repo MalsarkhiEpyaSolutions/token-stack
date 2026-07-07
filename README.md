@@ -1,10 +1,11 @@
 # TokenSaver
 
-One executable that installs and manages the 3-layer Claude Code token-optimization
+One executable that installs and manages the 4-layer Claude Code token-optimization
 stack on Windows: **Headroom** (API-payload compression proxy), **RTK** (Bash
-command-output filter), **Semble** (semantic code-search MCP). Measured combined
-savings: ~74-95% depending on workload. Also saves tokens on Claude Code pointed at
-GLM (Z.ai), Kimi (Moonshot), or MiniMax — see below.
+command-output filter), **Semble** (semantic code-search MCP), **CCO** (read-cache:
+blocks redundant file re-reads). Measured combined savings: ~74-95% depending on
+workload. Also saves tokens on Claude Code pointed at GLM (Z.ai), Kimi (Moonshot),
+or MiniMax — see below.
 
 ## Quick start — online (any Windows 10/11 machine, no admin)
 
@@ -16,7 +17,7 @@ GLM (Z.ai), Kimi (Moonshot), or MiniMax — see below.
 2. `.\token-saver.exe install`   (downloads pinned components; Headroom cold-loads 25-105s)
 3. Fully quit Claude (Desktop: tray icon → Quit) and relaunch.
 4. Every session now starts with:
-   `[TokenSaver] Headroom: up (:8787, ROUTED, reqs=N) | RTK: up | Semble: up (MCP)`
+   `[TokenSaver] Headroom: up (:8787, ROUTED, reqs=N) | RTK: up | Semble: up (MCP) | CCO: up`
 
 The installer copies itself to `C:\token-stack\token-saver.exe` — you can delete the
 unzipped download afterwards. (The install directory stays `C:\token-stack` for
@@ -62,6 +63,17 @@ Anthropic-compatible endpoint. OpenAI-only local servers like Ollama would need 
 translation proxy — not covered here. The key is stored in the .cmd in plain text; keep it
 private.)*
 
+## CCO read-cache (4th layer)
+
+Blocks redundant file re-reads (same file, same range, unchanged, this session) — the #1
+token waste in long coding sessions. Runs as `node` hooks (PreToolUse Read, PostToolUse
+Edit|Write, PreCompact) pointing at a pinned, vendored snapshot of
+[`egorfedorov/claude-context-optimizer`](https://github.com/egorfedorov/claude-context-optimizer)
+(read-cache only — no tracker/prompt-coach, so it never competes with the status line).
+Lossless and fail-safe: any error lets the read through. The lossy "map-then-load" nudge is
+disabled (`bigFileDigest:false`). **Requires Node ≥18 on PATH**; if absent, `install` skips it
+with a warning (the offline bundle ships no Node). Toggle with `on|off|toggle cco`.
+
 ## Offline / air-gapped machines
 
 The same `install` works with **zero network** when an offline bundle is present — it
@@ -90,7 +102,7 @@ The whole stack — or any single layer — pauses and resumes instantly (no rei
 .\token-saver.exe off              # whole stack off  → Claude talks DIRECT to Anthropic (still works)
 .\token-saver.exe on               # whole stack back on
 .\token-saver.exe toggle           # flip whichever way
-.\token-saver.exe off rtk          # just one layer: headroom | rtk | semble
+.\token-saver.exe off rtk          # just one layer: headroom | rtk | semble | cco
 ```
 
 **OFF is safe:** it removes the routing too, so Claude keeps working directly against
@@ -126,7 +138,7 @@ Each shows a popup confirming the new state.
 ## Config keys (full control)
 
 `installRoot` (no spaces!) · `headroom.enabled/port/mode(token|cache|passthrough)/version/pythonVersion/extraArgs/upstreamUrl(vendor endpoint, auto-detected)`
-· `rtk.enabled/version/source/hookMatcher(Bash only)` · `semble.enabled/version`
+· `rtk.enabled/version/source/hookMatcher(Bash only)` · `semble.enabled/version` · `cco.enabled/version`
 · `routing.cli/desktop` · `hooks.sessionStatusLine` · `bootstrap.uvInstaller`
 
 ## Trust & safety

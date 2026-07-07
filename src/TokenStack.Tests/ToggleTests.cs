@@ -48,6 +48,7 @@ public class ToggleTests
         cfg.Semble.Enabled = false;
         Assert.True(ToggleLogic.CurrentlyOn(cfg, StackLayer.All)); // headroom still on
         cfg.Headroom.Enabled = false;
+        cfg.Cco.Enabled = false; // cco defaults on — must also be off for All to read off
         Assert.False(ToggleLogic.CurrentlyOn(cfg, StackLayer.All));
     }
 
@@ -73,5 +74,31 @@ public class ToggleTests
         Assert.True(cfg.Headroom.Enabled);
         Assert.True(cfg.Rtk.Enabled);
         Assert.False(cfg.Semble.Enabled);
+    }
+
+    [Fact]
+    public void ParseLayer_Cco()
+    {
+        Assert.Equal(StackLayer.Cco, ToggleLogic.ParseLayer("cco"));
+        Assert.Equal(StackLayer.Cco, ToggleLogic.ParseLayer("CCO"));
+    }
+
+    [Fact]
+    public void SetFlag_Cco_TogglesOnlyCco()
+    {
+        var c = StackConfig.CreateDefault(@"C:\ts");
+        ToggleLogic.SetFlag(c, StackLayer.Cco, false);
+        Assert.False(c.Cco.Enabled);
+        Assert.True(c.Headroom.Enabled); // others untouched
+    }
+
+    [Fact]
+    public void CurrentlyOn_All_IncludesCco()
+    {
+        var c = StackConfig.CreateDefault(@"C:\ts");
+        c.Headroom.Enabled = c.Rtk.Enabled = c.Semble.Enabled = false;
+        Assert.True(ToggleLogic.CurrentlyOn(c, StackLayer.All)); // cco still on
+        ToggleLogic.SetFlag(c, StackLayer.Cco, false);
+        Assert.False(ToggleLogic.CurrentlyOn(c, StackLayer.All));
     }
 }

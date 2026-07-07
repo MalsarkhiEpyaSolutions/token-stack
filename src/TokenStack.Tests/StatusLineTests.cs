@@ -8,13 +8,14 @@ public class StatusLineTests
     private static StackStatus Healthy() => new(
         TaskRunning: true, PortListening: true, Routed: true, Reqs: 42,
         Port: 8787, RtkOnPath: true, SembleWired: true,
-        HeadroomEnabled: true, RtkEnabled: true, SembleEnabled: true);
+        HeadroomEnabled: true, RtkEnabled: true, SembleEnabled: true,
+        CcoEnabled: true, CcoWired: true);
 
     [Fact]
     public void AllUp_Routed_WithReqs()
     {
         Assert.Equal(
-            "[TokenSaver] Headroom: up (:8787, ROUTED, reqs=42) | RTK: up | Semble: up (MCP)",
+            "[TokenSaver] Headroom: up (:8787, ROUTED, reqs=42) | RTK: up | Semble: up (MCP) | CCO: up",
             StatusLine.Build(Healthy()));
     }
 
@@ -43,7 +44,7 @@ public class StatusLineTests
     {
         var s = Healthy() with { Reqs = null };
         Assert.Equal(
-            "[TokenSaver] Headroom: up (:8787, ROUTED) | RTK: up | Semble: up (MCP)",
+            "[TokenSaver] Headroom: up (:8787, ROUTED) | RTK: up | Semble: up (MCP) | CCO: up",
             StatusLine.Build(s));
     }
 
@@ -92,5 +93,12 @@ public class StatusLineTests
         var line = StatusLine.Build(s);
         Assert.Contains("RTK: OFF", line);
         Assert.Contains("Semble: OFF", line);
+    }
+
+    [Fact]
+    public void CcoOff_And_Missing_Reported()
+    {
+        Assert.Contains("CCO: OFF", StatusLine.Build(Healthy() with { CcoEnabled = false }));
+        Assert.Contains("CCO: MISSING", StatusLine.Build(Healthy() with { CcoWired = false }));
     }
 }

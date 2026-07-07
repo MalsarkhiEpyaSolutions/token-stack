@@ -1,0 +1,4 @@
+egorfedorov/claude-context-optimizer
+commit e7ab49e14568a03783a9a450fa5db200939ce9d5
+version 4.6.0
+vendored 2026-07-07 — read-cache slice only

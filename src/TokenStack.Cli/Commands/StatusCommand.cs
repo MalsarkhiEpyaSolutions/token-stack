@@ -47,6 +47,9 @@ public sealed class StatusCommand : Command<StatusCommand.Settings>
         t.AddRow("Semble",
             !status.SembleEnabled ? "[grey]OFF[/]" : status.SembleWired ? "[green]up[/]" : "[red]MISSING[/]",
             "stdio MCP (absolute exe)");
+        t.AddRow("CCO",
+            !status.CcoEnabled ? "[grey]OFF[/]" : status.CcoWired ? "[green]up[/]" : "[red]MISSING[/]",
+            "PreToolUse Read dedup");
         AnsiConsole.Write(t);
         Console.WriteLine();
         Console.WriteLine(StatusLine.Build(status));
@@ -54,7 +57,8 @@ public sealed class StatusCommand : Command<StatusCommand.Settings>
         // Healthy = every ENABLED layer is up; a layer that's intentionally OFF is not a failure.
         var healthy = (!status.HeadroomEnabled || (status.TaskRunning && status.PortListening))
             && (!status.RtkEnabled || status.RtkOnPath)
-            && (!status.SembleEnabled || status.SembleWired);
+            && (!status.SembleEnabled || status.SembleWired)
+            && (!status.CcoEnabled || status.CcoWired);
         return healthy ? 0 : 1;
     }
 }

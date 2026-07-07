@@ -223,4 +223,80 @@ public class ClaudeSurgeonTests
         var editor = new ClaudeFileEditor(file, () => DateTimeOffset.UtcNow);
         Assert.Empty(editor.Load().AsObject());
     }
+
+    // ---------- CCO read-cache hooks ----------
+
+    private const string CcoJs = @"C:\token-stack\cco\src\read-cache.js";
+
+    [Fact]
+    public void EnsureCcoHooks_AddsThreeEntries_AcrossEvents()
+    {
+        var root = Parse(RealisticSettings);
+        var changed = ClaudeSurgeon.EnsureCcoHooks(root, CcoJs);
+        Assert.True(changed);
+
+        var pre = root["hooks"]!["PreToolUse"]!.AsArray();
+        Assert.Contains(pre, e => e!["matcher"]?.GetValue<string>() == "Read"
+            && e["hooks"]![0]!["command"]!.GetValue<string>() == $"node \"{CcoJs}\"");
+        var post = root["hooks"]!["PostToolUse"]!.AsArray();
+        Assert.Contains(post, e => e!["matcher"]?.GetValue<string>() == "Edit|Write"
+            && e["hooks"]![0]!["command"]!.GetValue<string>() == $"node \"{CcoJs}\"");
+        var pc = root["hooks"]!["PreCompact"]!.AsArray();
+        Assert.Single(pc);
+        Assert.Equal($"node \"{CcoJs}\"", pc[0]!["hooks"]![0]!["command"]!.GetValue<string>());
+
+        // existing RTK Bash hook is untouched
+        Assert.Contains(root["hooks"]!["PreToolUse"]!.AsArray(),
+            e => e!["hooks"]![0]!["command"]!.GetValue<string>().Contains("rtk.exe"));
+    }
+
+    [Fact]
+    public void EnsureCcoHooks_Idempotent()
+    {
+        var root = Parse(RealisticSettings);
+        ClaudeSurgeon.EnsureCcoHooks(root, CcoJs);
+        var changed = ClaudeSurgeon.EnsureCcoHooks(root, CcoJs);
+        Assert.False(changed);
+        Assert.Single(root["hooks"]!["PreCompact"]!.AsArray());
+        Assert.Single(root["hooks"]!["PreToolUse"]!.AsArray(),
+            e => e!["hooks"]![0]!["command"]!.GetValue<string>().Contains("read-cache.js"));
+    }
+
+    [Fact]
+    public void EnsureCcoHooks_RewritesStalePath_NoDuplicate()
+    {
+        var root = Parse(RealisticSettings);
+        ClaudeSurgeon.EnsureCcoHooks(root, @"C:\old\read-cache.js");
+        var changed = ClaudeSurgeon.EnsureCcoHooks(root, CcoJs);
+        Assert.True(changed);
+        Assert.Single(root["hooks"]!["PreCompact"]!.AsArray());
+        Assert.Equal($"node \"{CcoJs}\"",
+            root["hooks"]!["PreCompact"]![0]!["hooks"]![0]!["command"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void RemoveCcoHooks_RemovesOnlyOurs()
+    {
+        var root = Parse(RealisticSettings);
+        ClaudeSurgeon.EnsureCcoHooks(root, CcoJs);
+        var changed = ClaudeSurgeon.RemoveCcoHooks(root);
+        Assert.True(changed);
+        Assert.DoesNotContain(root["hooks"]!["PreToolUse"]!.AsArray(),
+            e => e!["hooks"]![0]!["command"]!.GetValue<string>().Contains("read-cache.js"));
+        Assert.Empty(root["hooks"]!["PreCompact"]!.AsArray());
+        // RTK Bash hook survived
+        Assert.Contains(root["hooks"]!["PreToolUse"]!.AsArray(),
+            e => e!["hooks"]![0]!["command"]!.GetValue<string>().Contains("rtk.exe"));
+    }
+
+    [Fact]
+    public void EnsureThenRemoveCco_RoundTripsToOriginalHookShape()
+    {
+        var root = Parse(RealisticSettings);
+        ClaudeSurgeon.EnsureCcoHooks(root, CcoJs);
+        ClaudeSurgeon.RemoveCcoHooks(root);
+        Assert.Single(root["hooks"]!["PreToolUse"]!.AsArray());
+        Assert.Empty(root["hooks"]!["PostToolUse"]!.AsArray());
+        Assert.Empty(root["hooks"]!["PreCompact"]!.AsArray());
+    }
 }

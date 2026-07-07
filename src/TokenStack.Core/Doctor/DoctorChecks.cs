@@ -35,6 +35,7 @@ public static class DoctorRegistry
     {
         new RoutingBypassedCheck(), new ProxyZombieCheck(), new ProxyExtraMissingCheck(),
         new SembleUvxCheck(), new RtkHookMissingCheck(), new RtkHookPowershellCheck(),
+        new CcoHookMissingCheck(),
         new ModelPinLeftoverCheck(), new PathSpacesCheck(), new TaskMisconfiguredCheck(),
         new DisabledDriftCheck(), new OfflineModelsPresentCheck(),
     };
@@ -176,6 +177,27 @@ public sealed class RtkHookPowershellCheck : IDoctorCheck
         foreach (var b in bad) pre.Remove(b);
         ctx.SettingsChanged |= bad.Count > 0;
         return bad.Count > 0;
+    }
+}
+
+public sealed class CcoHookMissingCheck : IDoctorCheck
+{
+    public string Id => "cco-hook-missing";
+    public CheckResult Detect(DoctorContext ctx)
+    {
+        if (!ctx.Config.Cco.Enabled) return new(Id, true, "cco disabled", false);
+        var pre = ctx.Settings["hooks"]?["PreToolUse"]?.AsArray();
+        var wired = pre?.Any(e => e?["hooks"]?[0]?["command"]?.GetValue<string>()
+            ?.Contains("read-cache.js", StringComparison.OrdinalIgnoreCase) == true) == true;
+        return wired
+            ? new(Id, true, "cco read-cache hook present", false)
+            : new(Id, false, "cco enabled but read-cache hook missing", true);
+    }
+    public bool Fix(DoctorContext ctx)
+    {
+        var changed = ClaudeSurgeon.EnsureCcoHooks(ctx.Settings, CcoComponent.ReadCacheJs(ctx.Config));
+        ctx.SettingsChanged |= changed;
+        return changed;
     }
 }
 

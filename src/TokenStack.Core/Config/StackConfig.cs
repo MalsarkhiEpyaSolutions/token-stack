@@ -9,6 +9,7 @@ public sealed class StackConfig
     [JsonPropertyName("headroom")] public HeadroomConfig Headroom { get; set; } = new();
     [JsonPropertyName("rtk")] public RtkConfig Rtk { get; set; } = new();
     [JsonPropertyName("semble")] public SembleConfig Semble { get; set; } = new();
+    [JsonPropertyName("cco")] public CcoConfig Cco { get; set; } = new();
     [JsonPropertyName("routing")] public RoutingConfig Routing { get; set; } = new();
     [JsonPropertyName("hooks")] public HooksConfig Hooks { get; set; } = new();
     [JsonPropertyName("bootstrap")] public BootstrapConfig Bootstrap { get; set; } = new();
@@ -50,6 +51,12 @@ public sealed class SembleConfig
 {
     [JsonPropertyName("enabled")] public bool Enabled { get; set; } = true;
     [JsonPropertyName("version")] public string Version { get; set; } = "latest";
+}
+
+public sealed class CcoConfig
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; } = true;
+    [JsonPropertyName("version")] public string Version { get; set; } = "4.6.0";
 }
 
 public sealed class RoutingConfig

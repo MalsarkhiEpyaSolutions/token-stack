@@ -10,4 +10,15 @@
     <EmbeddedResource Include="Resources\run_proxy.py.tmpl" />
   </ItemGroup>
 
+  <!-- Vendor the pinned CCO read-cache snapshot into the exe: zip assets\cco at build time
+       and embed it, so install extracts it with no download and the offline bundle is unchanged. -->
+  <Target Name="ZipCcoSnapshot" BeforeTargets="AssignTargetPaths">
+    <ZipDirectory SourceDirectory="$(MSBuildProjectDirectory)\..\..\assets\cco"
+                  DestinationFile="$(IntermediateOutputPath)cco.zip"
+                  Overwrite="true" />
+    <ItemGroup>
+      <EmbeddedResource Include="$(IntermediateOutputPath)cco.zip" LogicalName="TokenStack.Core.cco.zip" />
+    </ItemGroup>
+  </Target>
+
 </Project>

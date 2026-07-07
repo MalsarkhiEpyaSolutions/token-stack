@@ -46,6 +46,56 @@ public static class ClaudeSurgeon
     private static bool IsRtkEntry(JsonNode? entry) =>
         FirstCommand(entry)?.Contains("rtk.exe", StringComparison.OrdinalIgnoreCase) == true;
 
+    // ---------- CCO read-cache hooks (PreToolUse[Read] + PostToolUse[Edit|Write] + PreCompact) ----------
+
+    /// <summary>Wire the read-cache blocker into the three events it needs. Bare `node "<path>"`
+    /// commands (no POSIX builtins) so they run under cmd.exe AND Git Bash. Identified by the
+    /// `read-cache.js` signature, so user-owned entries in those arrays are preserved.</summary>
+    public static bool EnsureCcoHooks(JsonNode root, string readCacheJsPath)
+    {
+        var wanted = $"node \"{readCacheJsPath}\"";
+        var changed = false;
+        changed |= EnsureCcoEntry(GetOrCreateArray(root, "hooks", "PreToolUse"), wanted, "Read");
+        changed |= EnsureCcoEntry(GetOrCreateArray(root, "hooks", "PostToolUse"), wanted, "Edit|Write");
+        changed |= EnsureCcoEntry(GetOrCreateArray(root, "hooks", "PreCompact"), wanted, matcher: null);
+        return changed;
+    }
+
+    public static bool RemoveCcoHooks(JsonNode root)
+    {
+        var changed = false;
+        foreach (var evt in new[] { "PreToolUse", "PostToolUse", "PreCompact" })
+        {
+            var arr = root["hooks"]?[evt]?.AsArray();
+            if (arr is null) continue;
+            var ours = arr.Where(IsCcoEntry).ToList();
+            foreach (var o in ours) arr.Remove(o);
+            changed |= ours.Count > 0;
+        }
+        return changed;
+    }
+
+    private static bool EnsureCcoEntry(JsonArray arr, string wanted, string? matcher)
+    {
+        var ours = arr.Where(IsCcoEntry).ToList();
+        if (ours.Count == 1
+            && ours[0]!["matcher"]?.GetValue<string>() == matcher
+            && FirstCommand(ours[0]) == wanted)
+            return false;
+
+        foreach (var o in ours) arr.Remove(o);
+        var entry = new JsonObject
+        {
+            ["hooks"] = new JsonArray(new JsonObject { ["type"] = "command", ["command"] = wanted }),
+        };
+        if (matcher is not null) entry["matcher"] = matcher;
+        arr.Add(entry);
+        return true;
+    }
+
+    private static bool IsCcoEntry(JsonNode? entry) =>
+        FirstCommand(entry)?.Contains("read-cache.js", StringComparison.OrdinalIgnoreCase) == true;
+
     // ---------- SessionStart status hook ----------
 
     public static bool EnsureSessionStatusHook(JsonNode root, string exePath)

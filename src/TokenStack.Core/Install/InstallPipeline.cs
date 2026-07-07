@@ -79,6 +79,7 @@ public sealed class InstallPipeline(
         if (cfg.Headroom.Enabled) steps.Add(new("headroom", () => { }));
         if (cfg.Rtk.Enabled) steps.Add(new("rtk", () => { }));
         if (cfg.Semble.Enabled) steps.Add(new("semble", () => { }));
+        if (cfg.Cco.Enabled) steps.Add(new("cco", () => { }));
         steps.Add(new("routing", () => { }));
         steps.Add(new("hooks", () => { }));
         steps.Add(new("save-config", () => { }));
@@ -128,6 +129,22 @@ public sealed class InstallPipeline(
         {
             log($"[4/8] rtk {cfg.Rtk.Version} ({(src.IsOffline ? "from bundle" : "download")} + PATH)");
             rtk.Install(cfg, src);
+        }
+
+        var cco = new CcoComponent(runner);
+        if (cfg.Cco.Enabled)
+        {
+            if (cco.NodePresent())
+            {
+                log($"[cco] read-cache {cfg.Cco.Version} (extract + disable big-file nudge + node smoke)");
+                cco.Install(cfg);
+            }
+            else
+            {
+                log("[cco] Node (>=18) not found on PATH — skipping read-cache layer " +
+                    "(install Node and run `token-saver on cco` to enable it later).");
+                cfg.Cco.Enabled = false;
+            }
         }
 
         var semble = new SembleComponent(runner);
@@ -199,6 +216,11 @@ public sealed class InstallPipeline(
         else
             changed |= ClaudeSurgeon.RemoveRtkHook(settings);
 
+        if (cfg.Cco.Enabled)
+            changed |= ClaudeSurgeon.EnsureCcoHooks(settings, CcoComponent.ReadCacheJs(cfg));
+        else
+            changed |= ClaudeSurgeon.RemoveCcoHooks(settings);
+
         if (cfg.Hooks.SessionStatusLine)
             changed |= ClaudeSurgeon.EnsureSessionStatusHook(settings,
                 Path.Combine(cfg.InstallRoot, Branding.ExeName));
@@ -269,6 +291,7 @@ public sealed class InstallPipeline(
         var settingsEditor = new ClaudeFileEditor(SettingsPath);
         var settings = settingsEditor.Load();
         var changed = ClaudeSurgeon.RemoveRtkHook(settings);
+        changed |= ClaudeSurgeon.RemoveCcoHooks(settings);
         changed |= ClaudeSurgeon.RemoveSessionStatusHook(settings);
         changed |= ClaudeSurgeon.RemoveEnvBaseUrl(settings);
         if (changed) settingsEditor.SaveWithBackup(settings);
@@ -286,7 +309,8 @@ public sealed class InstallPipeline(
 
         if (!keepConfig && File.Exists(ConfigStore.DefaultPath))
             File.Delete(ConfigStore.DefaultPath);
-        log($"NOTE: {cfg.InstallRoot} (venv/rtk/launcher) left on disk — delete manually " +
+        log($"NOTE: {cfg.InstallRoot} (venv/rtk/cco/launcher) left on disk — delete manually " +
             "after closing any process using it.");
+        log("NOTE: %USERPROFILE%\\.claude-context-optimizer (read-cache data) left on disk — delete manually if unwanted.");
     }
 }

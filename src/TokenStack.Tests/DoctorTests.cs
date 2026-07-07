@@ -126,14 +126,28 @@ public class DoctorTests
     }
 
     [Fact]
-    public void Registry_ContainsAllElevenChecks()
+    public void Registry_ContainsAllTwelveChecks()
     {
-        Assert.Equal(11, DoctorRegistry.All.Count);
+        Assert.Equal(12, DoctorRegistry.All.Count);
         Assert.Equal(new[]
         {
             "routing-bypassed", "proxy-zombie", "proxy-extra-missing", "semble-uvx",
-            "rtk-hook-missing", "rtk-hook-powershell", "model-pin-leftover",
+            "rtk-hook-missing", "rtk-hook-powershell", "cco-hook-missing", "model-pin-leftover",
             "path-spaces", "task-misconfigured", "stack-disabled-drift", "offline-models-present",
         }, DoctorRegistry.All.Select(c => c.Id).ToArray());
+    }
+
+    [Fact]
+    public void CcoHookMissingCheck_FailsThenFixes_WhenEnabledButUnwired()
+    {
+        var cfg = StackConfig.CreateDefault(@"C:\ts"); // cco enabled
+        var ctx = new DoctorContext(cfg, JsonNode.Parse("{}")!, JsonNode.Parse("{}")!,
+            new FakeEnv(), new FakePort(), new FakeRunner(), new FakeHttp());
+
+        var check = new CcoHookMissingCheck();
+        Assert.False(check.Detect(ctx).Ok);      // enabled but no hook present
+        Assert.True(check.Fix(ctx));             // adds it
+        Assert.True(ctx.SettingsChanged);
+        Assert.True(check.Detect(ctx).Ok);       // now present
     }
 }

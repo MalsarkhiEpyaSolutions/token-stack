@@ -19,6 +19,7 @@ public static class StatusLine
         }
         var rtk = !s.RtkEnabled ? "OFF" : s.RtkOnPath ? "up" : "MISSING";
         var semble = !s.SembleEnabled ? "OFF" : s.SembleWired ? "up (MCP)" : "MISSING";
-        return $"[TokenSaver] Headroom: {headroom} | RTK: {rtk} | Semble: {semble}";
+        var cco = !s.CcoEnabled ? "OFF" : s.CcoWired ? "up" : "MISSING";
+        return $"[TokenSaver] Headroom: {headroom} | RTK: {rtk} | Semble: {semble} | CCO: {cco}";
     }
 }

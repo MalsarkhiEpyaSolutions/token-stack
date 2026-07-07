@@ -110,4 +110,17 @@ public class ConfigTests
     {
         Assert.Empty(ConfigValidator.Validate(StackConfig.CreateDefault(@"C:\ts")));
     }
+
+    [Fact]
+    public void CcoConfig_DefaultsEnabledTrue_AndRoundTrips()
+    {
+        var cfg = StackConfig.CreateDefault(@"C:\ts");
+        Assert.True(cfg.Cco.Enabled);
+        Assert.Equal("4.6.0", cfg.Cco.Version);
+
+        var json = System.Text.Json.JsonSerializer.Serialize(cfg);
+        Assert.Contains("\"cco\"", json);
+        var back = System.Text.Json.JsonSerializer.Deserialize<StackConfig>(json)!;
+        Assert.True(back.Cco.Enabled);
+    }
 }
